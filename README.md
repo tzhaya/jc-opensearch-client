@@ -153,6 +153,23 @@ export default {
     }
 
     url.searchParams.delete('repo');
+
+    // クエリパラメータ検証: 許可キー以外・値の形式不正はブロック
+    const ALLOWED_PARAMS = {
+      format: /^jpcoar$/,
+      size:   /^(?:[1-9][0-9]?|100)$/,  // 1〜100 の整数
+      page:   /^[1-9][0-9]*$/,           // 1 以上の整数
+      title:  /^[\s\S]{0,200}$/,
+      des:    /^[\s\S]{0,200}$/,
+      type:   /^[\s\S]{0,200}$/,
+    };
+    for (const [key, value] of url.searchParams) {
+      const pattern = ALLOWED_PARAMS[key];
+      if (!pattern || !pattern.test(value)) {
+        return new Response('Bad Request', { status: 400 });
+      }
+    }
+
     const targetUrl = `${repoUrl.origin}/api/opensearch/search?${url.searchParams.toString()}`;
 
     let response;
@@ -193,6 +210,7 @@ export default {
 
 | 日付 | 内容 |
 |---|---|
+| 2026-02-23 | Worker セキュリティ強化: クエリパラメータのキー・値を許可リストで検証、不正パラメータをブロック |
 | 2026-02-23 | Worker セキュリティ強化: リダイレクト追従禁止・https/ポート制限・タイムアウト追加・不許可 Origin 時の CORS ヘッダー省略 |
 | 2026-02-23 | Worker の CORS を GitHub Pages オリジンのみに制限（`Access-Control-Allow-Origin: *` を廃止） |
 | 2026-02-23 | GitHub Actions による GitHub Pages デプロイを追加（proxyUrl をシークレット管理） |
