@@ -214,7 +214,8 @@
 <script>
 // ===== CONFIG =====
 const CONFIG = {
-  repositoryUrl: 'https://jircas.repo.nii.ac.jp/'
+  repositoryUrl: '',
+  proxyUrl: ''
 };
 // ==================
 
@@ -344,11 +345,15 @@ function pickByLang(els, lang) {
 
 function buildUrl(query, page) {
   const repoUrl = document.getElementById('repo-url').value.trim() || CONFIG.repositoryUrl;
-  const base = repoUrl.endsWith('/') ? repoUrl : repoUrl + '/';
+  const base = new URL(repoUrl).origin + '/';
   const params = new URLSearchParams({ format: 'jpcoar', size: PAGE_SIZE, page });
   if (query.title) params.set('title', query.title);
   if (query.des)   params.set('des',   query.des);
   if (query.type)  params.set('type',  query.type);
+  if (CONFIG.proxyUrl) {
+    params.set('repo', repoUrl);
+    return `${CONFIG.proxyUrl}?${params}`;
+  }
   return `${base}api/opensearch/search?${params}`;
 }
 
@@ -653,6 +658,12 @@ async function doSearch(page = 1) {
     des:   document.getElementById('q-des').value.trim(),
     type:  document.getElementById('q-type').value,
   };
+  const repoVal = document.getElementById('repo-url').value.trim() || CONFIG.repositoryUrl;
+  if (!repoVal) {
+    showError('リポジトリ URL を入力してください。', 'warn');
+    document.getElementById('repo-url').focus();
+    return;
+  }
   if (!query.title && !query.des && !query.type) {
     showError('検索条件を 1 つ以上入力してください。', 'warn');
     return;
@@ -671,7 +682,9 @@ async function doSearch(page = 1) {
   } catch (err) {
     const isCors = err instanceof TypeError && err.message === 'Failed to fetch';
     const msg = isCors
-      ? 'CORS エラー: ブラウザが API へのアクセスをブロックしました。\n\n以下のいずれかの方法で解決できます:\n① ブラウザ拡張機能「Allow CORS: Access-Control-Allow-Headers」等を有効化する\n② Chrome を --disable-web-security フラグ付きで起動する'
+      ? (CONFIG.proxyUrl
+          ? `接続エラー: プロキシ（${CONFIG.proxyUrl}）経由でのアクセスに失敗しました。プロキシの設定を確認してください。`
+          : 'CORS エラー: ブラウザが API へのアクセスをブロックしました。\n\n以下のいずれかの方法で解決できます:\n① ブラウザ拡張機能「Allow CORS: Access-Control-Allow-Headers」等を有効化する\n② Chrome を --disable-web-security フラグ付きで起動する')
       : `エラー: ${err.message}`;
     showError(msg, isCors ? 'cors' : 'warn');
   } finally {
