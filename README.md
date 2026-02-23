@@ -8,7 +8,7 @@ JAIRO Cloud で構築された機関リポジトリに対して OpenSearch 検�
 
 ## 特徴
 
-- 単一の HTML ファイル（`jc-opensearch.html`）で完結しています。
+- 単一の HTML ファイルで完結しています。
 - タイトル・内容記述・資源タイプによるキーワード検索を行います。
 - 検索結果を JPCOAR スキーマ XML から取得し、書誌情報を一覧表示します。
 - タイトルクリックで全 JPCOAR フィールドを展開して表示します。
@@ -17,17 +17,26 @@ JAIRO Cloud で構築された機関リポジトリに対して OpenSearch 検�
 
 ## 使い方
 
+### GitHub Pages で使う（推奨）
+
+[https://tzhaya.github.io/jc-opensearch-client/](https://tzhaya.github.io/jc-opensearch-client/) をブラウザで開く。
+
+### ローカルで使う
+
 1. `jc-opensearch.html` をブラウザで開く
 2. 検索対象の機関リポジトリ URL を入力（例: `https://jircas.repo.nii.ac.jp/`）
 3. キーワードを入力して検索
+   - ローカルで使用する場合は CORS の制限があります。ブラウザ拡張機能等で CORS を解除してください
 
 ## ファイル構成
 
 | ファイル | 説明 |
 |---|---|
-| `jc-opensearch.html` | メインの OpenSearch 検索クライアント |
+| `jc-opensearch.html` | メインの HTML テンプレート（CONFIG は空白） |
+| `.github/workflows/deploy.yml` | GitHub Actions デプロイワークフロー |
 | `docs/requirements.md` | 要件定義 |
 | `docs/implementation.md` | 実装計画 |
+| `docs/worklog.md` | 作業ログ |
 | `docs/resource_type_vocabulary.md` | 資源タイプ語彙一覧 |
 
 ## 設定
@@ -59,6 +68,14 @@ JAIRO Cloud API への CORS 問題を回避するための Cloudflare Workers �
 - Web サーバーで公開する場合は Cloudflare Workers を設定し、URL を記入してください
 - `proxyUrl` が設定されている場合、すべての API リクエストはプロキシ経由になります
 
+### GitHub Pages のセットアップ
+
+1. GitHub リポジトリの **Settings → Secrets and variables → Actions** に `PROXY_URL` シークレットを追加（Cloudflare Worker の URL を設定）
+2. **Settings → Pages** の Source を **「GitHub Actions」** に変更
+3. `master` ブランチへ push すると自動的にデプロイされます
+
+デプロイ時、GitHub Actions が `jc-opensearch.html` の `proxyUrl: ''` をシークレット値で置換した `index.html` を生成します。`index.html` はリポジトリには含まれません。
+
 ### Cloudflare Workers のセットアップ
 
 Cloudflare Workers を使用してプロキシを立てる手順は以下の通りです。
@@ -69,7 +86,30 @@ Cloudflare Workers を使用してプロキシを立てる手順は以下の通�
 4. Edit code から以下のコードに置き換えて再 Deploy
 
 ```javascript
-const ALLOWED_HOST = /\.repo\.nii\.ac\.jp$/;
+// SSRF 対策: JAIRO Cloud 利用機関リストに基づくホスト制限
+// 出典: https://docs.google.com/spreadsheets/d/1oNjykAjC2uvTV0KdUHflOwOq0Y7tMSqc10GivORNFMc/
+// *.repo.nii.ac.jp は正規表現で一括許可、それ以外の機関は個別に列挙
+const ALLOWED_HOST_PATTERN = /\.repo\.nii\.ac\.jp$/i;
+const ALLOWED_HOSTS_EXTRA = new Set([
+  'repository.nii.ac.jp',
+  'd-repo.ier.hit-u.ac.jp',
+  'repository.lib.tottori-u.ac.jp',
+  'ismrepo.ism.ac.jp',
+  'repository.ninjal.ac.jp',
+  'ir.soken.ac.jp',
+  'repository.dl.itc.u-tokyo.ac.jp',
+  'teapot.lib.ocha.ac.jp',
+  'kutarr.kochi-tech.ac.jp',
+  'ir.jikei.ac.jp',
+  'ir.kagoshima-u.ac.jp',
+  'amcor.asahikawa-med.ac.jp',
+  'repository.ffpri.go.jp',
+  'repository.jircas.go.jp',
+  'repository.naro.go.jp',
+  'ir.ide.go.jp',
+  'repo.qst.go.jp',
+  'repo-tkfd.jp',
+]);
 
 export default {
   async fetch(request) {
@@ -85,9 +125,14 @@ export default {
     const repo = url.searchParams.get('repo');
     if (!repo) return new Response('Missing repo parameter', { status: 400 });
 
-    // SSRF 対策: *.repo.nii.ac.jp のみ許可
-    const repoHost = new URL(repo).hostname;
-    if (!ALLOWED_HOST.test(repoHost)) {
+    // SSRF 対策: JAIRO Cloud 利用機関のホストのみ許可
+    let repoHost;
+    try {
+      repoHost = new URL(repo).hostname.toLowerCase();
+    } catch {
+      return new Response('Invalid repo URL', { status: 400 });
+    }
+    if (!ALLOWED_HOST_PATTERN.test(repoHost) && !ALLOWED_HOSTS_EXTRA.has(repoHost)) {
       return new Response('Forbidden', { status: 403 });
     }
 
@@ -113,6 +158,8 @@ export default {
 
 | 日付 | 内容 |
 |---|---|
+| 2026-02-23 | GitHub Actions による GitHub Pages デプロイを追加（proxyUrl をシークレット管理） |
+| 2026-02-23 | ALLOWED_HOST を JAIRO Cloud 利用機関リスト（スプレッドシート）に基づいて更新 |
 | 2026-02-23 | Cloudflare Workers プロキシ対応 |
 | 2026-02-22 | 初版リリース |
 

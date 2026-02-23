@@ -57,6 +57,16 @@
     -   取得件数は20件とします。
     -   ヒット件数が21件以上の場合は、ページングして表示します。
 
+## Cloudflare Workers プロキシ要件
+
+- CORS 問題を回避するため、Cloudflare Workers をプロキシとして使用する
+- **SSRF 対策**: プロキシが転送できる接続先ホストを JAIRO Cloud 利用機関のリストに限定する
+  - `*.repo.nii.ac.jp` は正規表現で一括許可（大文字小文字を区別しない）
+  - それ以外の機関（東京大学・国立情報学研究所等）は Set で個別に列挙して許可
+  - 利用機関リストの出典: [JAIRO Cloud 利用機関一覧スプレッドシート](https://docs.google.com/spreadsheets/d/1oNjykAjC2uvTV0KdUHflOwOq0Y7tMSqc10GivORNFMc/)
+  - リスト外のホストへのリクエストは HTTP 403 を返す
+- プロキシ URL は `jc-opensearch.html` の `CONFIG.proxyUrl` に設定する
+
 ### HTMLテーブル の実装要件
 
 - 以下の情報を一覧表示する。
