@@ -1,10 +1,31 @@
 # 作業ログ
 
+## 2026-02-23: GitHub Actions による GitHub Pages デプロイを追加
+
+### 対応内容
+
+- GitHub Actions を使用して `jc-opensearch.html` から `index.html` を生成・デプロイする仕組みを追加
+- `CONFIG.proxyUrl` の値は GitHub Secrets（`PROXY_URL`）から注入し、リポジトリには記録しない
+- `index.html` は `.gitignore` に追加（デプロイ時のみ生成）
+- エラーメッセージを公開用に簡略化（CORS 手動解除の案内を削除）
+- `jc-opensearch.html` はテンプレート版として CONFIG 空白のまま維持
+
+### 変更ファイル
+
+| ファイル | 変更内容 |
+|---|---|
+| `.github/workflows/deploy.yml` | 新規作成（GitHub Actions デプロイ） |
+| `.gitignore` | `index.html` を追加 |
+| `README.md` | 使い方・ファイル構成・変更履歴を更新 |
+| `docs/worklog.md` | 本セクションを追記 |
+
+---
+
 ## 2026-02-23: ALLOWED_HOST を JAIRO Cloud 利用機関リストに基づいて更新
 
 ### 背景
 
-Cloudflare Workers プロキシの SSRF 対策として設定していた `ALLOWED_HOST` が `*.repo.nii.ac.jp` の正規表現のみであったため、JAIRO Cloud 利用機関のうち非標準ドメインを持つ機関（東京大学・お茶の水女子大学・総研大等）が利用できない問題があった。また、正規表現が広すぎて `*.repo.nii.ac.jp` であれば任意のホストへ転送できる状態であった。
+Cloudflare Workers プロキシの SSRF 対策として設定していた `ALLOWED_HOST` が `*.repo.nii.ac.jp` の正規表現のみであったため、JAIRO Cloud 利用機関のうち独自ドメインを持つ機関（東京大学・お茶の水女子大学・総研大等）が利用できない問題があった。また、正規表現が広すぎて `*.repo.nii.ac.jp` であれば任意のホストへ転送できる状態であった。
 
 ### 対応内容
 
@@ -13,9 +34,9 @@ Cloudflare Workers プロキシの SSRF 対策として設定していた `ALLOW
 JAIRO Cloud 利用機関一覧スプレッドシートの「リポジトリURL（JAIRO Cloud利用機関のみ）」列を参照し、以下の分類を確認した。
 
 - 大多数（約800機関）: `*.repo.nii.ac.jp` ドメイン → 正規表現で一括許可を維持
-- 少数（18機関）: 非標準ドメイン → `Set` で個別に列挙して追加
+- 少数（18機関）: 独自ドメイン → `Set` で個別に列挙して追加
 
-#### 非標準ドメイン一覧（18件）
+#### 独自ドメイン一覧（18件）
 
 | ホスト | 機関 |
 |---|---|
@@ -44,7 +65,7 @@ JAIRO Cloud 利用機関一覧スプレッドシートの「リポジトリURL�
 
 - `const ALLOWED_HOST = /\.repo\.nii\.ac\.jp$/` を削除
 - `ALLOWED_HOST_PATTERN = /\.repo\.nii\.ac\.jp$/i`（`/i` フラグで大文字小文字を区別しない）を追加
-- `ALLOWED_HOSTS_EXTRA`（18件の非標準ドメインの Set）を追加
+- `ALLOWED_HOSTS_EXTRA`（18件の独自ドメインの Set）を追加
 - ホスト検証ロジックを `ALLOWED_HOST_PATTERN.test(repoHost) || ALLOWED_HOSTS_EXTRA.has(repoHost)` に変更
 - `hostname.toLowerCase()` で正規化してから比較するよう変更
 - URL パース失敗時に `400 Invalid repo URL` を返す防御コードを追加

@@ -8,7 +8,7 @@ JAIRO Cloud で構築された機関リポジトリに対して OpenSearch 検�
 
 ## 特徴
 
-- 単一の HTML ファイル（`jc-opensearch.html`）で完結しています。
+- 単一の HTML ファイルで完結しています。
 - タイトル・内容記述・資源タイプによるキーワード検索を行います。
 - 検索結果を JPCOAR スキーマ XML から取得し、書誌情報を一覧表示します。
 - タイトルクリックで全 JPCOAR フィールドを展開して表示します。
@@ -17,17 +17,26 @@ JAIRO Cloud で構築された機関リポジトリに対して OpenSearch 検�
 
 ## 使い方
 
+### GitHub Pages で使う（推奨）
+
+[https://tzhaya.github.io/jc-opensearch-client/](https://tzhaya.github.io/jc-opensearch-client/) をブラウザで開く。
+
+### ローカルで使う
+
 1. `jc-opensearch.html` をブラウザで開く
 2. 検索対象の機関リポジトリ URL を入力（例: `https://jircas.repo.nii.ac.jp/`）
 3. キーワードを入力して検索
+   - ローカルで使用する場合は CORS の制限があります。ブラウザ拡張機能等で CORS を解除してください
 
 ## ファイル構成
 
 | ファイル | 説明 |
 |---|---|
-| `jc-opensearch.html` | メインの OpenSearch 検索クライアント |
+| `jc-opensearch.html` | メインの HTML テンプレート（CONFIG は空白） |
+| `.github/workflows/deploy.yml` | GitHub Actions デプロイワークフロー |
 | `docs/requirements.md` | 要件定義 |
 | `docs/implementation.md` | 実装計画 |
+| `docs/worklog.md` | 作業ログ |
 | `docs/resource_type_vocabulary.md` | 資源タイプ語彙一覧 |
 
 ## 設定
@@ -58,6 +67,14 @@ JAIRO Cloud API への CORS 問題を回避するための Cloudflare Workers �
 - ローカルで使用する場合は空のままでも、ブラウザ拡張機能等で CORS を解除すれば動作します
 - Web サーバーで公開する場合は Cloudflare Workers を設定し、URL を記入してください
 - `proxyUrl` が設定されている場合、すべての API リクエストはプロキシ経由になります
+
+### GitHub Pages のセットアップ
+
+1. GitHub リポジトリの **Settings → Secrets and variables → Actions** に `PROXY_URL` シークレットを追加（Cloudflare Worker の URL を設定）
+2. **Settings → Pages** の Source を **「GitHub Actions」** に変更
+3. `master` ブランチへ push すると自動的にデプロイされます
+
+デプロイ時、GitHub Actions が `jc-opensearch.html` の `proxyUrl: ''` をシークレット値で置換した `index.html` を生成します。`index.html` はリポジトリには含まれません。
 
 ### Cloudflare Workers のセットアップ
 
@@ -141,6 +158,7 @@ export default {
 
 | 日付 | 内容 |
 |---|---|
+| 2026-02-23 | GitHub Actions による GitHub Pages デプロイを追加（proxyUrl をシークレット管理） |
 | 2026-02-23 | ALLOWED_HOST を JAIRO Cloud 利用機関リスト（スプレッドシート）に基づいて更新 |
 | 2026-02-23 | Cloudflare Workers プロキシ対応 |
 | 2026-02-22 | 初版リリース |
