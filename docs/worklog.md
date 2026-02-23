@@ -1,5 +1,28 @@
 # 作業ログ
 
+## 2026-02-23: Worker の CORS を GitHub Pages オリジンのみに制限
+
+### 背景
+
+Cloudflare Workers プロキシが `Access-Control-Allow-Origin: *` を返していたため、Worker URL を知っていれば任意のオリジンからアクセスできる状態だった。
+
+### 対応内容
+
+- `ALLOWED_ORIGIN` 定数を追加し、許可するオリジンを1つに限定
+- `Access-Control-Allow-Origin: *` を廃止し、リクエストの `Origin` ヘッダーが `ALLOWED_ORIGIN` と一致する場合のみそのオリジンを返すよう変更
+- `Vary: Origin` ヘッダーを追加（CDN キャッシュが Origin 別に正しく保持されるよう）
+- OPTIONS（プリフライト）レスポンスも同様に変更
+
+### 変更ファイル
+
+| ファイル | 変更内容 |
+|---|---|
+| `README.md` | Worker コードを更新、変更履歴に追記 |
+| `docs/requirements.md` | CORS 制限要件を追記 |
+| `docs/worklog.md` | 本セクションを追記 |
+
+---
+
 ## 2026-02-23: GitHub Actions による GitHub Pages デプロイを追加
 
 ### 対応内容
