@@ -17,9 +17,10 @@ JAIRO Cloud で構築された機関リポジトリに対して OpenSearch 検�
 
 ## 使い方
 
-### GitHub Pages で使う（推奨）
+### Webサーバに設置する
 
-[https://tzhaya.github.io/jc-opensearch-client/](https://tzhaya.github.io/jc-opensearch-client/) をブラウザで開く。
+- 例；GitHub Pages に設置する
+  - [https://tzhaya.github.io/jc-opensearch-client/](https://tzhaya.github.io/jc-opensearch-client/) をブラウザで開く。
 
 ### ローカルで使う
 
