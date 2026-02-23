@@ -1,5 +1,49 @@
 # 作業ログ
 
+## 2026-02-23: Worker に Workers KV を使った Rate Limiting を追加
+
+### 背景
+
+Cloudflare Workers プロキシに対して CORS 制限・SSRF 対策等のセキュリティ強化を実施済みだが、CORS はブラウザ向けの制約であり curl 等のサーバー間通信は防止できないため、過剰リクエストに対する制御手段がなかった。
+
+### 対応内容
+
+Workers KV を使った IP ベースのスライディングウィンドウ方式 Rate Limiting を実装した。
+
+#### 設定値
+
+| 定数 | 値 | 説明 |
+|---|---|---|
+| `RATE_LIMIT_ENABLED` | `true` | Rate Limiting の有効/無効（KV 未設定時は `false` に） |
+| `RATE_LIMIT_REQUESTS` | `30` | ウィンドウ内の最大リクエスト数（IP ごと） |
+| `RATE_LIMIT_WINDOW_SEC` | `60` | ウィンドウ幅（秒） |
+
+#### 実装の仕組み
+
+- `CF-Connecting-IP` ヘッダー（Cloudflare が付与）でクライアント IP を取得
+- KV キーを `rl:<IP>:<window番号>` とし、ウィンドウ番号は `Math.floor(現在時刻秒 / WINDOW_SEC)` で算出
+- リクエストごとに KV からカウントを取得・インクリメントして書き戻す（TTL は `WINDOW_SEC * 2`）
+- カウントが上限を超えた場合は `429 Too Many Requests` と `Retry-After` ヘッダーを返す
+- OPTIONS（プリフライト）はレート制限対象外
+
+#### fetch シグネチャの変更
+
+KV バインディングにアクセスするため `async fetch(request)` → `async fetch(request, env)` に変更。KV namespace は `env.RATE_LIMIT_KV` として参照。
+
+#### KV 無料枠の注意点
+
+Workers KV 無料枠: 読み取り 10万回/日・書き込み 1,000回/日。書き込みは毎リクエスト発生するため、アクセス数が多い場合は `RATE_LIMIT_ENABLED = false` に変更して無効化可能。
+
+### 変更ファイル
+
+| ファイル | 変更内容 |
+|---|---|
+| `README.md` | Worker コードを更新（Rate Limiting 実装・KV セットアップ手順追加・変更履歴追記） |
+| `docs/requirements.md` | Rate Limiting 要件を追記 |
+| `docs/worklog.md` | 本セクションを追記 |
+
+---
+
 ## 2026-02-23: Worker クエリパラメータ許可リスト検証
 
 ### 背景

@@ -17,9 +17,11 @@ JAIRO Cloud で構築された機関リポジトリに対して OpenSearch 検�
 
 ## 使い方
 
-### GitHub Pages で使う（推奨）
+### 例：GitHub Pages で使う
 
-[https://tzhaya.github.io/jc-opensearch-client/](https://tzhaya.github.io/jc-opensearch-client/) をブラウザで開く。
+- GitHub Pages等、いずれかのWebサーバ上に設置することをお勧めします。
+- 例；GitHub Pagesでの設置例
+  - [https://tzhaya.github.io/jc-opensearch-client/](https://tzhaya.github.io/jc-opensearch-client/) 
 
 ### ローカルで使う
 
@@ -116,11 +118,24 @@ const ALLOWED_HOSTS_EXTRA = new Set([
 //     独自ドメインの場合は 'https://example.com'
 // ※ パス（/jc-opensearch-client/ など）は含めません
 // ※ CORS はブラウザ向けの制約であり、curl 等のサーバー間通信は防止できません。
-//   不正利用が懸念される場合は Cloudflare Access や Rate Limiting の利用を検討してください。
 const ALLOWED_ORIGIN = 'https://<username>.github.io';
 
+// Rate Limiting 設定 (Workers KV が不要な場合は RATE_LIMIT_ENABLED を false に)
+// KV バインディング名 RATE_LIMIT_KV を Cloudflare ダッシュボードで作成・バインドしてください
+const RATE_LIMIT_ENABLED = true;
+const RATE_LIMIT_REQUESTS = 30; // ウィンドウ内の最大リクエスト数（IP ごと）
+const RATE_LIMIT_WINDOW_SEC = 60; // ウィンドウ幅（秒）
+
+async function checkRateLimit(ip, kv) {
+  const window = Math.floor(Date.now() / 1000 / RATE_LIMIT_WINDOW_SEC);
+  const key = `rl:${ip}:${window}`;
+  const current = parseInt(await kv.get(key) ?? '0') + 1;
+  await kv.put(key, String(current), { expirationTtl: RATE_LIMIT_WINDOW_SEC * 2 });
+  return current <= RATE_LIMIT_REQUESTS;
+}
+
 export default {
-  async fetch(request) {
+  async fetch(request, env) {
     const origin = request.headers.get('Origin');
     const corsOrigin = origin === ALLOWED_ORIGIN ? ALLOWED_ORIGIN : null;
 
@@ -131,6 +146,17 @@ export default {
         headers['Access-Control-Allow-Methods'] = 'GET';
       }
       return new Response(null, { headers });
+    }
+
+    // Rate Limiting チェック (IP ごとに 60 秒間で最大 30 リクエスト)
+    if (RATE_LIMIT_ENABLED) {
+      const ip = request.headers.get('CF-Connecting-IP') ?? 'unknown';
+      if (!(await checkRateLimit(ip, env.RATE_LIMIT_KV))) {
+        return new Response('Too Many Requests', {
+          status: 429,
+          headers: { 'Retry-After': String(RATE_LIMIT_WINDOW_SEC) },
+        });
+      }
     }
 
     const url = new URL(request.url);
@@ -211,7 +237,13 @@ export default {
 };
 ```
 
-5. 払い出された Worker URL（例: `https://your-worker.your-subdomain.workers.dev`）を CONFIG の `proxyUrl` に設定
+5. KV namespace を作成してバインドする（Rate Limiting を使用する場合）
+   1. **Workers & Pages** → **KV** → **Create a namespace** で新しい namespace（例: `jc-proxy-rate-limit`）を作成
+   2. 作成した Worker → **Settings → Bindings** → **Add** → **KV Namespace** を選択
+   3. Variable name に `RATE_LIMIT_KV`、KV Namespace に上記で作成した namespace を指定して Save
+   > Rate Limiting が不要な場合は Worker コード内の `RATE_LIMIT_ENABLED` を `false` に変更すれば KV なしで動作します。
+
+6. 払い出された Worker URL（例: `https://your-worker.your-subdomain.workers.dev`）を CONFIG の `proxyUrl` に設定
 
 ## 参照仕様
 
@@ -222,6 +254,7 @@ export default {
 
 | 日付 | 内容 |
 |---|---|
+| 2026-02-23 | Worker に Workers KV を使った IP ベースの Rate Limiting を追加（60秒/30リクエスト） |
 | 2026-02-23 | Worker セキュリティ強化: クエリパラメータのキー・値を許可リストで検証、不正パラメータをブロック |
 | 2026-02-23 | Worker セキュリティ強化: リダイレクト追従禁止・https/ポート制限・タイムアウト追加・不許可 Origin 時の CORS ヘッダー省略 |
 | 2026-02-23 | Worker の CORS を GitHub Pages オリジンのみに制限（`Access-Control-Allow-Origin: *` を廃止） |

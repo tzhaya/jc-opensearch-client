@@ -69,6 +69,9 @@
 - **CORS 制限**: `Access-Control-Allow-Origin` は `*` を使用せず、`ALLOWED_ORIGIN` に設定した特定オリジンのみ許可する
   - `ALLOWED_ORIGIN` には Worker を利用するページのオリジン（例: `https://<username>.github.io`）を設定する
   - `Vary: Origin` を付与してキャッシュ動作を正しく制御する
+- **Rate Limiting**: Workers KV を使い IP ごとに 60 秒間で最大 30 リクエストに制限する
+  - 超過時は `429 Too Many Requests`（`Retry-After` ヘッダー付き）を返す
+  - `RATE_LIMIT_ENABLED = false` で無効化可能（KV 未設定環境向け）
 
 ### HTMLテーブル の実装要件
 
