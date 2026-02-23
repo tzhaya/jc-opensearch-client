@@ -115,44 +115,67 @@ const ALLOWED_HOSTS_EXTRA = new Set([
 // 例: GitHub Pages の場合は 'https://<username>.github.io'
 //     独自ドメインの場合は 'https://example.com'
 // ※ パス（/jc-opensearch-client/ など）は含めません
+// ※ CORS はブラウザ向けの制約であり、curl 等のサーバー間通信は防止できません。
+//   不正利用が懸念される場合は Cloudflare Access や Rate Limiting の利用を検討してください。
 const ALLOWED_ORIGIN = 'https://<username>.github.io';
 
 export default {
   async fetch(request) {
     const origin = request.headers.get('Origin');
-    const corsOrigin = origin === ALLOWED_ORIGIN ? ALLOWED_ORIGIN : '';
+    const corsOrigin = origin === ALLOWED_ORIGIN ? ALLOWED_ORIGIN : null;
 
     if (request.method === 'OPTIONS') {
-      return new Response(null, {
-        headers: {
-          'Access-Control-Allow-Origin': corsOrigin,
-          'Access-Control-Allow-Methods': 'GET',
-          'Vary': 'Origin',
-        }
-      });
+      const headers = { 'Vary': 'Origin' };
+      if (corsOrigin) {
+        headers['Access-Control-Allow-Origin'] = corsOrigin;
+        headers['Access-Control-Allow-Methods'] = 'GET';
+      }
+      return new Response(null, { headers });
     }
 
     const url = new URL(request.url);
     const repo = url.searchParams.get('repo');
     if (!repo) return new Response('Missing repo parameter', { status: 400 });
 
-    // SSRF 対策: JAIRO Cloud 利用機関のホストのみ許可
-    let repoHost;
+    // SSRF 対策: https のみ許可・非標準ポート拒否・許可ホストのみ転送
+    let repoUrl;
     try {
-      repoHost = new URL(repo).hostname.toLowerCase();
+      repoUrl = new URL(repo);
     } catch {
       return new Response('Invalid repo URL', { status: 400 });
     }
+    if (repoUrl.protocol !== 'https:' || repoUrl.port !== '') {
+      return new Response('Forbidden', { status: 403 });
+    }
+    const repoHost = repoUrl.hostname.toLowerCase();
     if (!ALLOWED_HOST_PATTERN.test(repoHost) && !ALLOWED_HOSTS_EXTRA.has(repoHost)) {
       return new Response('Forbidden', { status: 403 });
     }
 
     url.searchParams.delete('repo');
-    const base = new URL(repo).origin + '/';
-    const targetUrl = `${base}api/opensearch/search?${url.searchParams.toString()}`;
-    const response = await fetch(targetUrl);
+    const targetUrl = `${repoUrl.origin}/api/opensearch/search?${url.searchParams.toString()}`;
+
+    let response;
+    try {
+      response = await fetch(targetUrl, {
+        redirect: 'manual',
+        signal: AbortSignal.timeout(10000),
+      });
+    } catch {
+      return new Response('Upstream request failed', { status: 502 });
+    }
+
+    // リダイレクト応答はそのまま通さない（SSRF 回避）
+    if (response.status >= 300 && response.status < 400) {
+      return new Response('Redirect not allowed', { status: 502 });
+    }
+
     const newResponse = new Response(response.body, response);
-    newResponse.headers.set('Access-Control-Allow-Origin', corsOrigin);
+    if (corsOrigin) {
+      newResponse.headers.set('Access-Control-Allow-Origin', corsOrigin);
+    } else {
+      newResponse.headers.delete('Access-Control-Allow-Origin');
+    }
     newResponse.headers.set('Vary', 'Origin');
     return newResponse;
   }
@@ -170,6 +193,7 @@ export default {
 
 | 日付 | 内容 |
 |---|---|
+| 2026-02-23 | Worker セキュリティ強化: リダイレクト追従禁止・https/ポート制限・タイムアウト追加・不許可 Origin 時の CORS ヘッダー省略 |
 | 2026-02-23 | Worker の CORS を GitHub Pages オリジンのみに制限（`Access-Control-Allow-Origin: *` を廃止） |
 | 2026-02-23 | GitHub Actions による GitHub Pages デプロイを追加（proxyUrl をシークレット管理） |
 | 2026-02-23 | ALLOWED_HOST を JAIRO Cloud 利用機関リスト（スプレッドシート）に基づいて更新 |
