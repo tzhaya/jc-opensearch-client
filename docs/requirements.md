@@ -66,6 +66,9 @@
   - 利用機関リストの出典: [JAIRO Cloud 利用機関一覧スプレッドシート](https://docs.google.com/spreadsheets/d/1oNjykAjC2uvTV0KdUHflOwOq0Y7tMSqc10GivORNFMc/)
   - リスト外のホストへのリクエストは HTTP 403 を返す
 - プロキシ URL は `jc-opensearch.html` の `CONFIG.proxyUrl` に設定する
+- **CORS 制限**: `Access-Control-Allow-Origin` は `*` を使用せず、`ALLOWED_ORIGIN` に設定した特定オリジンのみ許可する
+  - `ALLOWED_ORIGIN` には Worker を利用するページのオリジン（例: `https://<username>.github.io`）を設定する
+  - `Vary: Origin` を付与してキャッシュ動作を正しく制御する
 
 ### HTMLテーブル の実装要件
 

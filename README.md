@@ -111,16 +111,27 @@ const ALLOWED_HOSTS_EXTRA = new Set([
   'repo-tkfd.jp',
 ]);
 
+// CORS 対策: このプロキシを使用するページのオリジンを設定してください
+// 例: GitHub Pages の場合は 'https://<username>.github.io'
+//     独自ドメインの場合は 'https://example.com'
+// ※ パス（/jc-opensearch-client/ など）は含めません
+const ALLOWED_ORIGIN = 'https://<username>.github.io';
+
 export default {
   async fetch(request) {
+    const origin = request.headers.get('Origin');
+    const corsOrigin = origin === ALLOWED_ORIGIN ? ALLOWED_ORIGIN : '';
+
     if (request.method === 'OPTIONS') {
       return new Response(null, {
         headers: {
-          'Access-Control-Allow-Origin': '*',
+          'Access-Control-Allow-Origin': corsOrigin,
           'Access-Control-Allow-Methods': 'GET',
+          'Vary': 'Origin',
         }
       });
     }
+
     const url = new URL(request.url);
     const repo = url.searchParams.get('repo');
     if (!repo) return new Response('Missing repo parameter', { status: 400 });
@@ -141,7 +152,8 @@ export default {
     const targetUrl = `${base}api/opensearch/search?${url.searchParams.toString()}`;
     const response = await fetch(targetUrl);
     const newResponse = new Response(response.body, response);
-    newResponse.headers.set('Access-Control-Allow-Origin', '*');
+    newResponse.headers.set('Access-Control-Allow-Origin', corsOrigin);
+    newResponse.headers.set('Vary', 'Origin');
     return newResponse;
   }
 };
@@ -158,6 +170,7 @@ export default {
 
 | 日付 | 内容 |
 |---|---|
+| 2026-02-23 | Worker の CORS を GitHub Pages オリジンのみに制限（`Access-Control-Allow-Origin: *` を廃止） |
 | 2026-02-23 | GitHub Actions による GitHub Pages デプロイを追加（proxyUrl をシークレット管理） |
 | 2026-02-23 | ALLOWED_HOST を JAIRO Cloud 利用機関リスト（スプレッドシート）に基づいて更新 |
 | 2026-02-23 | Cloudflare Workers プロキシ対応 |
