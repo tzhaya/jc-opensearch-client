@@ -1,5 +1,88 @@
 # 作業ログ
 
+## 2026-02-23: Worker クエリパラメータ許可リスト検証
+
+### 背景
+
+Cloudflare Workers プロキシが受け取ったクエリパラメータをそのまま上流 API へ転送しており、クライアントが意図しないパラメータ（不明なキー・不正な値）を注入できる状態だった。
+
+### 対応内容
+
+`ALLOWED_PARAMS` オブジェクトでキーと値を正規表現で検証し、1つでも条件を満たさないパラメータがあれば `400 Bad Request` を返す。
+
+| パラメータ | 許可パターン |
+|---|---|
+| `format` | `jpcoar` のみ |
+| `size` | 1〜100 の整数 |
+| `page` | 1 以上の整数 |
+| `title` | 200文字以内の文字列 |
+| `des` | 200文字以内の文字列 |
+| `type` | resource_type_vocabulary.md 掲載の 47 値のみ（完全一致） |
+| 上記以外 | 一律ブロック |
+
+`type` は `Set` による完全一致チェックを行い、ループは `rule instanceof Set ? rule.has(value) : rule.test(value)` で RegExp / Set 両対応。
+`repo` はこの検証前に取り出し・削除済みのため対象外。
+
+### 変更ファイル
+
+| ファイル | 変更内容 |
+|---|---|
+| `README.md` | Worker コードを更新、変更履歴に追記 |
+| `docs/worklog.md` | 本セクションを追記 |
+
+---
+
+## 2026-02-23: Worker セキュリティ強化（リダイレクト・スキーム・タイムアウト・CORS ヘッダー）
+
+### 背景
+
+Cloudflare Workers プロキシのコードレビューで以下のセキュリティ課題が指摘された。
+
+### 対応内容
+
+#### 1. リダイレクト追従禁止（高）
+
+`fetch(targetUrl)` のデフォルト動作は 3xx リダイレクトを追従するため、許可済みホストから許可外ホストへのリダイレクトを経由した SSRF が可能だった。
+
+- `fetch(targetUrl, { redirect: 'manual' })` を設定してリダイレクト追従を無効化
+- `response.status >= 300 && response.status < 400` の場合は `502 Redirect not allowed` を返す
+- `fetch` 例外を try/catch で捕捉して `502 Upstream request failed` を返す
+
+#### 2. スキーム/ポート制限（中）
+
+ホスト名のみ検証しており、`http://` URL や非標準ポート指定を防いでいなかった。
+
+- `repoUrl.protocol !== 'https:'` の場合は `403 Forbidden` を返す
+- `repoUrl.port !== ''` の場合（非標準ポート）も `403 Forbidden` を返す
+- URL パースを `repoHost = new URL(repo).hostname` から `repoUrl = new URL(repo)` に変更して一括取得
+
+#### 3. タイムアウト追加（中）
+
+タイムアウト設定がなく、上流サーバーの遅延応答で Worker 実行時間が消費される問題があった。
+
+- `signal: AbortSignal.timeout(10000)` で 10 秒タイムアウトを設定
+
+#### 4. 不許可 Origin 時の CORS ヘッダー省略（低）
+
+`corsOrigin = ''` として空文字の `Access-Control-Allow-Origin` を返していた。
+
+- `corsOrigin = null` に変更し、`corsOrigin` が非 null の場合のみヘッダーを設定
+- OPTIONS レスポンスも同様に変更（ヘッダーを object で組み立てて条件追加）
+
+#### 5. CORS の限界をコメントで明示（中）
+
+`ALLOWED_ORIGIN` の説明コメントに以下を追記:
+> ※ CORS はブラウザ向けの制約であり、curl 等のサーバー間通信は防止できません。不正利用が懸念される場合は Cloudflare Access や Rate Limiting の利用を検討してください。
+
+### 変更ファイル
+
+| ファイル | 変更内容 |
+|---|---|
+| `README.md` | Worker コードを更新、変更履歴に追記 |
+| `docs/worklog.md` | 本セクションを追記 |
+
+---
+
 ## 2026-02-23: Worker の CORS を GitHub Pages オリジンのみに制限
 
 ### 背景
