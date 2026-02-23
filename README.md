@@ -161,11 +161,23 @@ export default {
       page:   /^[1-9][0-9]*$/,           // 1 以上の整数
       title:  /^[\s\S]{0,200}$/,
       des:    /^[\s\S]{0,200}$/,
-      type:   /^[\s\S]{0,200}$/,
+      type:   new Set([
+        'conference paper', 'data paper', 'departmental bulletin paper', 'editorial',
+        'journal article', 'newspaper', 'periodical', 'review article', 'software paper',
+        'article', 'book', 'book part', 'cartographic material', 'map',
+        'conference object', 'conference proceedings', 'conference poster',
+        'dataset', 'interview', 'image', 'still image', 'moving image', 'video',
+        'lecture', 'patent', 'internal report', 'report', 'research report',
+        'technical report', 'policy report', 'report part', 'working paper',
+        'data management plan', 'sound', 'thesis', 'bachelor thesis', 'master thesis',
+        'doctoral thesis', 'interactive resource', 'learning object', 'manuscript',
+        'musical notation', 'research proposal', 'software', 'technical documentation',
+        'workflow', 'other',
+      ]),
     };
     for (const [key, value] of url.searchParams) {
-      const pattern = ALLOWED_PARAMS[key];
-      if (!pattern || !pattern.test(value)) {
+      const rule = ALLOWED_PARAMS[key];
+      if (!rule || !(rule instanceof Set ? rule.has(value) : rule.test(value))) {
         return new Response('Bad Request', { status: 400 });
       }
     }

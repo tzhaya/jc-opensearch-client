@@ -17,9 +17,10 @@ Cloudflare Workers プロキシが受け取ったクエリパラメータをそ�
 | `page` | 1 以上の整数 |
 | `title` | 200文字以内の文字列 |
 | `des` | 200文字以内の文字列 |
-| `type` | 200文字以内の文字列 |
+| `type` | resource_type_vocabulary.md 掲載の 47 値のみ（完全一致） |
 | 上記以外 | 一律ブロック |
 
+`type` は `Set` による完全一致チェックを行い、ループは `rule instanceof Set ? rule.has(value) : rule.test(value)` で RegExp / Set 両対応。
 `repo` はこの検証前に取り出し・削除済みのため対象外。
 
 ### 変更ファイル
