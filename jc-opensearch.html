@@ -703,11 +703,24 @@ async function fetchIndexTree() {
     const res = await fetch(treeUrl);
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const data = await res.json();
-    if (Array.isArray(data) && data.length > 0) {
+    console.log('[IndexTree] raw response:', data);
+
+    // WEKO3 のレスポンス形式に合わせて配列を取り出す
+    let nodes = null;
+    if (Array.isArray(data)) {
+      nodes = data;
+    } else if (data && Array.isArray(data.hits)) {
+      nodes = data.hits;
+    } else if (data && data.hits && Array.isArray(data.hits.hits)) {
+      nodes = data.hits.hits;
+    }
+
+    if (nodes && nodes.length > 0) {
       select.innerHTML = '<option value="">-- 指定なし --</option>';
-      addTreeNodes(select, data, 0);
+      addTreeNodes(select, nodes, 0);
       select.disabled = false;
     } else {
+      console.warn('[IndexTree] 認識できる配列が見つかりません。F12 コンソールで raw response を確認してください。');
       select.innerHTML = '<option value="">-- インデックスが見つかりません --</option>';
     }
   } catch {
