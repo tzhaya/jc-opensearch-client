@@ -169,6 +169,19 @@
     .page-btn:hover { background: #f0f0f0; }
     .page-btn:disabled { color: #aaa; cursor: not-allowed; }
     .page-info { color: #555; }
+    .btn-inline {
+      margin-left: 8px;
+      flex-shrink: 0;
+      padding: 6px 12px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      background: #f6f8fa;
+      font-size: 13px;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+    .btn-inline:hover { background: #e9ecef; }
+    .btn-inline:disabled { color: #aaa; cursor: not-allowed; }
   </style>
 </head>
 <body>
@@ -195,6 +208,13 @@
       <select id="q-type">
         <option value="">-- 指定なし --</option>
       </select>
+    </div>
+    <div class="form-row">
+      <label for="q-iid">インデックス</label>
+      <select id="q-iid" disabled>
+        <option value="">-- リポジトリ URL を設定後に取得 --</option>
+      </select>
+      <button id="btn-fetch-tree" class="btn-inline" type="button">取得</button>
     </div>
     <div class="form-actions">
       <button id="btn-search">検索</button>
@@ -350,6 +370,7 @@ function buildUrl(query, page) {
   if (query.title) params.set('title', query.title);
   if (query.des)   params.set('des',   query.des);
   if (query.type)  params.set('type',  query.type);
+  if (query.iid)   params.set('iid',   query.iid);
   if (CONFIG.proxyUrl) {
     params.set('repo', repoUrl);
     return `${CONFIG.proxyUrl}?${params}`;
@@ -650,6 +671,68 @@ function renderPagination(totalResults, currentPage) {
   pag.appendChild(nextBtn);
 }
 
+// ---- インデックスツリー取得 ----
+
+let treeFetchInProgress = false;
+
+async function fetchIndexTree() {
+  if (treeFetchInProgress) return;
+  const repoVal = document.getElementById('repo-url').value.trim() || CONFIG.repositoryUrl;
+  const select = document.getElementById('q-iid');
+  const btn = document.getElementById('btn-fetch-tree');
+
+  if (!repoVal) {
+    select.innerHTML = '<option value="">-- リポジトリ URL を入力してください --</option>';
+    select.disabled = true;
+    return;
+  }
+
+  treeFetchInProgress = true;
+  select.innerHTML = '<option value="">-- 取得中… --</option>';
+  select.disabled = true;
+  btn.disabled = true;
+
+  try {
+    let treeUrl;
+    if (CONFIG.proxyUrl) {
+      const params = new URLSearchParams({ repo: repoVal, path: '/api/tree' });
+      treeUrl = `${CONFIG.proxyUrl}?${params}`;
+    } else {
+      treeUrl = `${new URL(repoVal).origin}/api/tree`;
+    }
+    const res = await fetch(treeUrl);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+    if (Array.isArray(data) && data.length > 0) {
+      select.innerHTML = '<option value="">-- 指定なし --</option>';
+      addTreeNodes(select, data, 0);
+      select.disabled = false;
+    } else {
+      select.innerHTML = '<option value="">-- インデックスが見つかりません --</option>';
+    }
+  } catch {
+    select.innerHTML = '<option value="">-- 取得に失敗しました（再試行: 取得ボタン）--</option>';
+  } finally {
+    treeFetchInProgress = false;
+    btn.disabled = false;
+  }
+}
+
+function addTreeNodes(select, nodes, depth) {
+  nodes.forEach(node => {
+    const id = node.id ?? '';
+    const label = node.value || node.name || String(id);
+    if (id === '' && !label) return;
+    const opt = document.createElement('option');
+    opt.value = String(id);
+    opt.textContent = '\u00a0\u00a0'.repeat(depth) + label;
+    select.appendChild(opt);
+    if (Array.isArray(node.children) && node.children.length > 0) {
+      addTreeNodes(select, node.children, depth + 1);
+    }
+  });
+}
+
 // ---- 検索実行 ----
 
 async function doSearch(page = 1) {
@@ -657,6 +740,7 @@ async function doSearch(page = 1) {
     title: document.getElementById('q-title').value.trim(),
     des:   document.getElementById('q-des').value.trim(),
     type:  document.getElementById('q-type').value,
+    iid:   document.getElementById('q-iid').value,
   };
   const repoVal = document.getElementById('repo-url').value.trim() || CONFIG.repositoryUrl;
   if (!repoVal) {
@@ -664,7 +748,7 @@ async function doSearch(page = 1) {
     document.getElementById('repo-url').focus();
     return;
   }
-  if (!query.title && !query.des && !query.type) {
+  if (!query.title && !query.des && !query.type && !query.iid) {
     showError('検索条件を 1 つ以上入力してください。', 'warn');
     return;
   }
@@ -723,12 +807,20 @@ function init() {
   });
 
   document.getElementById('btn-search').addEventListener('click', () => doSearch(1));
+  document.getElementById('btn-fetch-tree').addEventListener('click', fetchIndexTree);
+  document.getElementById('repo-url').addEventListener('change', () => {
+    const select = document.getElementById('q-iid');
+    select.innerHTML = '<option value="">-- 取得ボタンで更新 --</option>';
+    select.disabled = true;
+  });
 
   ['q-title', 'q-des'].forEach(id => {
     document.getElementById(id).addEventListener('keydown', e => {
       if (e.key === 'Enter') doSearch(1);
     });
   });
+
+  if (CONFIG.repositoryUrl) fetchIndexTree();
 }
 
 document.addEventListener('DOMContentLoaded', init);
