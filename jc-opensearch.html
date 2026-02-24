@@ -211,9 +211,8 @@
     </div>
     <div class="form-row">
       <label for="q-iid">インデックス</label>
-      <select id="q-iid" disabled>
-        <option value="">-- リポジトリ URL を設定後に取得 --</option>
-      </select>
+      <input type="text" id="q-iid" list="iid-datalist" placeholder="取得ボタンで候補を表示、または ID を直接入力">
+      <datalist id="iid-datalist"></datalist>
       <button id="btn-fetch-tree" class="btn-inline" type="button">取得</button>
     </div>
     <div class="form-actions">
@@ -678,19 +677,19 @@ let treeFetchInProgress = false;
 async function fetchIndexTree() {
   if (treeFetchInProgress) return;
   const repoVal = document.getElementById('repo-url').value.trim() || CONFIG.repositoryUrl;
-  const select = document.getElementById('q-iid');
+  const iidInput = document.getElementById('q-iid');
+  const datalist = document.getElementById('iid-datalist');
   const btn = document.getElementById('btn-fetch-tree');
 
   if (!repoVal) {
-    select.innerHTML = '<option value="">-- リポジトリ URL を入力してください --</option>';
-    select.disabled = true;
+    iidInput.placeholder = 'リポジトリ URL を入力してください';
     return;
   }
 
   treeFetchInProgress = true;
-  select.innerHTML = '<option value="">-- 取得中… --</option>';
-  select.disabled = true;
+  iidInput.placeholder = '取得中…';
   btn.disabled = true;
+  datalist.innerHTML = '';
 
   try {
     let treeUrl;
@@ -707,39 +706,38 @@ async function fetchIndexTree() {
 
     // WEKO3 のレスポンス形式に合わせて配列を取り出す
     let nodes = null;
-    if (Array.isArray(data))                               nodes = data;
-    else if (data && Array.isArray(data.data))             nodes = data.data;
-    else if (data && Array.isArray(data.hits))             nodes = data.hits;
+    if (Array.isArray(data))                                   nodes = data;
+    else if (data && Array.isArray(data.data))                 nodes = data.data;
+    else if (data && Array.isArray(data.hits))                 nodes = data.hits;
     else if (data && data.hits && Array.isArray(data.hits.hits)) nodes = data.hits.hits;
 
     if (nodes && nodes.length > 0) {
-      select.innerHTML = '<option value="">-- 指定なし --</option>';
-      addTreeNodes(select, nodes, 0);
-      select.disabled = false;
+      addTreeNodes(datalist, nodes, 0);
+      iidInput.placeholder = 'インデックスを選択または ID を直接入力';
     } else {
-      console.warn('[IndexTree] 認識できる配列なし。raw response を確認してください。');
-      select.innerHTML = '<option value="">-- インデックスが見つかりません --</option>';
+      console.warn('[IndexTree] 認識できる配列なし (empty)。ID を直接入力してください。');
+      iidInput.placeholder = '取得できませんでした。ID を直接入力してください';
     }
   } catch (err) {
     console.error('[IndexTree] fetch エラー:', err);
-    select.innerHTML = `<option value="">-- 取得に失敗しました: ${err.message} --</option>`;
+    iidInput.placeholder = `取得失敗 (${err.message})。ID を直接入力してください`;
   } finally {
     treeFetchInProgress = false;
     btn.disabled = false;
   }
 }
 
-function addTreeNodes(select, nodes, depth) {
+function addTreeNodes(datalist, nodes, depth) {
   nodes.forEach(node => {
-    const id = node.id ?? '';
-    const label = node.value || node.name || String(id);
-    if (id === '' && !label) return;
+    const id = String(node.id ?? '');
+    const label = node.value || node.name || '';
+    if (!id && !label) return;
     const opt = document.createElement('option');
-    opt.value = String(id);
-    opt.textContent = '\u00a0\u00a0'.repeat(depth) + label;
-    select.appendChild(opt);
+    // value に "ID - 名前" 形式で入れる。doSearch 側で先頭の数字のみ抽出する
+    opt.value = id ? (label ? `${id} - ${'　'.repeat(depth)}${label}` : id) : label;
+    datalist.appendChild(opt);
     if (Array.isArray(node.children) && node.children.length > 0) {
-      addTreeNodes(select, node.children, depth + 1);
+      addTreeNodes(datalist, node.children, depth + 1);
     }
   });
 }
@@ -751,7 +749,7 @@ async function doSearch(page = 1) {
     title: document.getElementById('q-title').value.trim(),
     des:   document.getElementById('q-des').value.trim(),
     type:  document.getElementById('q-type').value,
-    iid:   document.getElementById('q-iid').value,
+    iid:   (/^\d+/.exec(document.getElementById('q-iid').value.trim()) || [''])[0],
   };
   const repoVal = document.getElementById('repo-url').value.trim() || CONFIG.repositoryUrl;
   if (!repoVal) {
@@ -820,9 +818,10 @@ function init() {
   document.getElementById('btn-search').addEventListener('click', () => doSearch(1));
   document.getElementById('btn-fetch-tree').addEventListener('click', fetchIndexTree);
   document.getElementById('repo-url').addEventListener('change', () => {
-    const select = document.getElementById('q-iid');
-    select.innerHTML = '<option value="">-- 取得ボタンで更新 --</option>';
-    select.disabled = true;
+    document.getElementById('iid-datalist').innerHTML = '';
+    const input = document.getElementById('q-iid');
+    input.value = '';
+    input.placeholder = '取得ボタンで候補を表示、または ID を直接入力';
   });
 
   ['q-title', 'q-des'].forEach(id => {
