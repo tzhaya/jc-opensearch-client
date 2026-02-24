@@ -1,5 +1,46 @@
 # 作業ログ
 
+## 2026-02-24: インデックス（iid）絞り込み検索の追加
+
+### 背景
+
+- WEKO3 OpenSearch API の `iid` パラメータ（インデックスID）が有効に動作することを確認。
+- 対象インデックスを絞り込んで検索できる機能を要望。
+
+### 対応内容
+
+**クライアント (jc-opensearch.html)**
+
+| 追加内容 | 説明 |
+|---|---|
+| インデックス選択フィールド | 資源タイプの下に `<select id="q-iid">` と「取得」ボタンを追加 |
+| `fetchIndexTree()` | リポジトリの `/api/tree` を呼び出し、インデックスツリーを取得してドロップダウンに表示 |
+| `addTreeNodes()` | ツリーを再帰的にフラット化し、深さに応じてインデント（`\u00a0` 2個）を付与 |
+| `buildUrl` | `query.iid` があれば URL パラメータに追加 |
+| `doSearch` | `iid` を query オブジェクトに追加、検索条件チェックに `iid` を追加 |
+| `init` | 「取得」ボタンクリック・リポジトリURL変更時のイベントリスナー追加、初期URL設定済みの場合は自動取得 |
+
+**ツリー取得フロー**
+
+1. ユーザーがリポジトリ URL を入力後、「取得」ボタンをクリック
+2. `fetchIndexTree()` が `proxyUrl?repo=...&path=/api/tree` を呼び出し
+3. WEKO3 `/api/tree` の JSON レスポンス（`id`, `value`, `children` の再帰構造）を解析
+4. `addTreeNodes()` で `<option value="ID">インデックス名</option>` に変換
+
+**Cloudflare Worker (README.md)**
+
+| 追加内容 | 説明 |
+|---|---|
+| `path` パラメータ処理 | `path=/api/tree` の場合は `{repoUrl}/api/tree` にルーティング（追加パラメータ不可） |
+| `iid` パラメータ検証 | `ALLOWED_PARAMS` に追加（正規表現 `/^\d{1,10}$/`） |
+
+### 変更ファイル
+
+| ファイル | 変更内容 |
+|---|---|
+| `jc-opensearch.html` | インデックスフィールド UI・fetchIndexTree 関数・iid 対応 |
+| `README.md` | Worker コード更新（path モード・iid 検証追加）、変更履歴追記 |
+
 ## 2026-02-23: Worker クエリパラメータ許可リスト検証
 
 ### 背景

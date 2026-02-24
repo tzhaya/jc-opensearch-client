@@ -154,36 +154,47 @@ export default {
     }
 
     url.searchParams.delete('repo');
+    const path = url.searchParams.get('path');
+    url.searchParams.delete('path');
 
-    // クエリパラメータ検証: 許可キー以外・値の形式不正はブロック
-    const ALLOWED_PARAMS = {
-      format: /^jpcoar$/,
-      size:   /^(?:[1-9][0-9]?|100)$/,  // 1〜100 の整数
-      page:   /^[1-9][0-9]*$/,           // 1 以上の整数
-      title:  /^[\s\S]{0,200}$/,
-      des:    /^[\s\S]{0,200}$/,
-      type:   new Set([
-        'conference paper', 'data paper', 'departmental bulletin paper', 'editorial',
-        'journal article', 'newspaper', 'periodical', 'review article', 'software paper',
-        'article', 'book', 'book part', 'cartographic material', 'map',
-        'conference object', 'conference proceedings', 'conference poster',
-        'dataset', 'interview', 'image', 'still image', 'moving image', 'video',
-        'lecture', 'patent', 'internal report', 'report', 'research report',
-        'technical report', 'policy report', 'report part', 'working paper',
-        'data management plan', 'sound', 'thesis', 'bachelor thesis', 'master thesis',
-        'doctoral thesis', 'interactive resource', 'learning object', 'manuscript',
-        'musical notation', 'research proposal', 'software', 'technical documentation',
-        'workflow', 'other',
-      ]),
-    };
-    for (const [key, value] of url.searchParams) {
-      const rule = ALLOWED_PARAMS[key];
-      if (!rule || !(rule instanceof Set ? rule.has(value) : rule.test(value))) {
+    let targetUrl;
+    if (path === '/api/tree') {
+      // インデックスツリー取得モード: 追加パラメータは不可
+      if ([...url.searchParams].length > 0) {
         return new Response('Bad Request', { status: 400 });
       }
+      targetUrl = `${repoUrl.origin}/api/tree`;
+    } else {
+      // OpenSearch 検索モード: クエリパラメータ検証
+      const ALLOWED_PARAMS = {
+        format: /^jpcoar$/,
+        size:   /^(?:[1-9][0-9]?|100)$/,  // 1〜100 の整数
+        page:   /^[1-9][0-9]*$/,           // 1 以上の整数
+        title:  /^[\s\S]{0,200}$/,
+        des:    /^[\s\S]{0,200}$/,
+        iid:    /^\d{1,10}$/,              // 数値 ID（最大 10 桁）
+        type:   new Set([
+          'conference paper', 'data paper', 'departmental bulletin paper', 'editorial',
+          'journal article', 'newspaper', 'periodical', 'review article', 'software paper',
+          'article', 'book', 'book part', 'cartographic material', 'map',
+          'conference object', 'conference proceedings', 'conference poster',
+          'dataset', 'interview', 'image', 'still image', 'moving image', 'video',
+          'lecture', 'patent', 'internal report', 'report', 'research report',
+          'technical report', 'policy report', 'report part', 'working paper',
+          'data management plan', 'sound', 'thesis', 'bachelor thesis', 'master thesis',
+          'doctoral thesis', 'interactive resource', 'learning object', 'manuscript',
+          'musical notation', 'research proposal', 'software', 'technical documentation',
+          'workflow', 'other',
+        ]),
+      };
+      for (const [key, value] of url.searchParams) {
+        const rule = ALLOWED_PARAMS[key];
+        if (!rule || !(rule instanceof Set ? rule.has(value) : rule.test(value))) {
+          return new Response('Bad Request', { status: 400 });
+        }
+      }
+      targetUrl = `${repoUrl.origin}/api/opensearch/search?${url.searchParams.toString()}`;
     }
-
-    const targetUrl = `${repoUrl.origin}/api/opensearch/search?${url.searchParams.toString()}`;
 
     let response;
     try {
@@ -223,6 +234,7 @@ export default {
 
 | 日付 | 内容 |
 |---|---|
+| 2026-02-24 | インデックス（iid）による絞り込み検索を追加: WEKO3 `/api/tree` からインデックス一覧を取得してドロップダウン表示、Worker に `path=/api/tree` モードと `iid` パラメータ検証を追加 |
 | 2026-02-23 | Worker セキュリティ強化: クエリパラメータのキー・値を許可リストで検証、不正パラメータをブロック |
 | 2026-02-23 | Worker セキュリティ強化: リダイレクト追従禁止・https/ポート制限・タイムアウト追加・不許可 Origin 時の CORS ヘッダー省略 |
 | 2026-02-23 | Worker の CORS を GitHub Pages オリジンのみに制限（`Access-Control-Allow-Origin: *` を廃止） |
