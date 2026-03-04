@@ -144,15 +144,19 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
 ## コスト・工数見積もり
 
-| 作業 | 工数 |
-|---|---|
-| package.json + electron-builder設定 | 1時間 |
-| src/main.js（メインプロセス + IPC） | 1〜2時間 |
-| src/preload.js | 0.5時間 |
-| src/renderer/index.html（HTML移植・修正） | 1時間 |
-| GitHub Actions ビルドCI | 1〜2時間 |
-| 動作確認・テスト | 2時間 |
-| **合計** | **約6.5〜8.5時間** |
+コードの実装はAIが担当するため、人間の作業は主にレビューと実機テストになります。
+
+| 作業 | AI実装 | 人間（レビュー・確認） |
+|---|---|---|
+| package.json + electron-builder設定 | 数分 | 15分 |
+| src/main.js（メインプロセス + IPC） | 数分 | 30分 |
+| src/preload.js | 数分 | 10分 |
+| src/renderer/index.html（HTML移植・修正） | 数分 | 30分 |
+| GitHub Actions ビルドCI | 数分 | 30分（シークレット設定含む） |
+| 実機での動作確認・テスト | 実機テスト不可 | 1〜2時間 |
+| **合計** | **30分以内** | **約3〜4時間** |
+
+> **注意**: 各プラットフォーム向けインストーラのビルドと動作確認（Windows/macOS/Linux実機）は人間の作業が必須です。コード署名証明書が必要な場合は別途対応が必要です。
 
 **リスク評価：低**
 - アプリが非常にシンプル（Vanilla JS、依存なし）
