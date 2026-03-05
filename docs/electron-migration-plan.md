@@ -82,10 +82,7 @@ Electron (デスクトップアプリ)
   "main": "src/main.js",
   "scripts": {
     "start": "electron .",
-    "build": "electron-builder",
-    "build:win": "electron-builder --win",
-    "build:mac": "electron-builder --mac",
-    "build:linux": "electron-builder --linux"
+    "build": "electron-builder --win"
   },
   "dependencies": {
     "electron": "^latest"
@@ -98,9 +95,7 @@ Electron (デスクトップアプリ)
     "productName": "JAIRO Cloud OpenSearch クライアント",
     "directories": { "output": "dist" },
     "files": ["src/**/*"],
-    "win":   { "target": "nsis" },
-    "mac":   { "target": "dmg"  },
-    "linux": { "target": "AppImage" }
+    "win": { "target": "nsis" }
   }
 }
 ```
@@ -137,7 +132,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
 ### Step 5: .github/workflows/build-electron.yml の作成
 
 - トリガー: タグプッシュ（`v*`）またはマニュアル実行
-- Matrix: Windows, macOS, Linux の3プラットフォームでビルド
+- ビルド対象: **Windows のみ**（`windows-latest` ランナー）
 - GitHub Releases へのアップロード
 
 ---
@@ -153,10 +148,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
 | src/preload.js | 数分 | 10分 |
 | src/renderer/index.html（HTML移植・修正） | 数分 | 30分 |
 | GitHub Actions ビルドCI | 数分 | 30分（シークレット設定含む） |
-| 実機での動作確認・テスト | 実機テスト不可 | 1〜2時間 |
+| 実機での動作確認・テスト（Windows） | 実機テスト不可 | 1〜2時間 |
 | **合計** | **30分以内** | **約3〜4時間** |
 
-> **注意**: 各プラットフォーム向けインストーラのビルドと動作確認（Windows/macOS/Linux実機）は人間の作業が必須です。コード署名証明書が必要な場合は別途対応が必要です。
+> **注意**: Windowsインストーラのビルドと動作確認は人間の作業が必須です。コード署名証明書が必要な場合は別途対応が必要です。
 
 **リスク評価：低**
 - アプリが非常にシンプル（Vanilla JS、依存なし）
@@ -169,8 +164,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
 1. `npm start` でElectronアプリが起動することを確認
 2. Cloudflare WorkersプロキシなしでJAIRO Cloud機関リポジトリを検索できることを確認
-3. `npm run build` で各プラットフォーム向けインストーラが生成されることを確認
-4. 生成したインストーラをインストールして動作確認
+3. `npm run build` でWindowsインストーラ（NSIS）が生成されることを確認
+4. 生成した `.exe` インストーラをインストールして動作確認
 5. 既存の `jc-opensearch.html`（GitHub Pages版）が引き続き動作することを確認
 
 ---
