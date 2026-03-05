@@ -219,6 +219,40 @@ const CONFIG = {
 };
 // ==================
 
+// ===== 通信先ホスト制限 =====
+// Cloudflare Workers プロキシと同じルールでクライアント側でも検証する。
+// 出典: https://docs.google.com/spreadsheets/d/1oNjykAjC2uvTV0KdUHflOwOq0Y7tMSqc10GivORNFMc/
+const ALLOWED_HOST_PATTERN = /\.repo\.nii\.ac\.jp$/i;
+const ALLOWED_HOSTS_EXTRA = new Set([
+  'repository.nii.ac.jp',
+  'd-repo.ier.hit-u.ac.jp',
+  'repository.lib.tottori-u.ac.jp',
+  'ismrepo.ism.ac.jp',
+  'repository.ninjal.ac.jp',
+  'ir.soken.ac.jp',
+  'repository.dl.itc.u-tokyo.ac.jp',
+  'teapot.lib.ocha.ac.jp',
+  'kutarr.kochi-tech.ac.jp',
+  'ir.jikei.ac.jp',
+  'ir.kagoshima-u.ac.jp',
+  'amcor.asahikawa-med.ac.jp',
+  'repository.ffpri.go.jp',
+  'repository.jircas.go.jp',
+  'repository.naro.go.jp',
+  'ir.ide.go.jp',
+  'repo.qst.go.jp',
+  'repo-tkfd.jp',
+]);
+
+function isAllowedHost(repoUrl) {
+  let parsed;
+  try { parsed = new URL(repoUrl); } catch { return false; }
+  if (parsed.protocol !== 'https:') return false;
+  const host = parsed.hostname;
+  return ALLOWED_HOST_PATTERN.test(host) || ALLOWED_HOSTS_EXTRA.has(host);
+}
+// ===========================
+
 // 資源タイプ語彙（docs/resource_type_vocabulary.md より）
 const RESOURCE_TYPES = [
   { en: 'conference paper',        ja: '会議発表論文' },
@@ -661,6 +695,11 @@ async function doSearch(page = 1) {
   const repoVal = document.getElementById('repo-url').value.trim() || CONFIG.repositoryUrl;
   if (!repoVal) {
     showError('リポジトリ URL を入力してください。', 'warn');
+    document.getElementById('repo-url').focus();
+    return;
+  }
+  if (!isAllowedHost(repoVal)) {
+    showError('このリポジトリ URL は許可されていません。JAIRO Cloud 利用機関の URL を入力してください。', 'warn');
     document.getElementById('repo-url').focus();
     return;
   }
