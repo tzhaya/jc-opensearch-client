@@ -68,29 +68,36 @@ Chrome のサイドパネルで検索クライアントを使用できます。�
 
 単体のデスクトップアプリケーションとして動作します。プロキシサーバーは不要です。
 
-#### 開発モードで実行
+#### 必要なもの
+
+- [Node.js](https://nodejs.org/) 20 以降
+- [Git](https://git-scm.com/)（リポジトリのクローンに使用）
+
+#### セットアップと起動
 
 ```bash
+# リポジトリをクローン
+git clone https://github.com/tzhaya/jc-opensearch-client.git
+cd jc-opensearch-client
+
+# 依存パッケージのインストール（初回のみ）
 npm install
+
+# アプリを起動
 npm start
 ```
 
-#### Windows インストーラーをビルド
+#### 使い方
 
-```bash
-npm run build
-```
-
-`dist/` フォルダに NSIS インストーラー（`.exe`）が生成されます。
-
-#### リリース版の入手
-
-GitHub にバージョンタグ（`v1.0.0` 等）を push すると、GitHub Actions が自動的に Windows インストーラーをビルドし、[Releases](../../releases) ページにアップロードします。
+1. `npm start` を実行するとアプリウィンドウが開きます
+2. **リポジトリ URL** 欄に検索対象の機関リポジトリ URL を入力（例: `https://jircas.repo.nii.ac.jp/`）
+3. **キーワード** を入力して「検索」ボタンをクリック
+4. 検索結果のタイトルをクリックすると詳細情報が展開されます
+5. タイトルのリンクをクリックすると、既定のブラウザで該当ページが開きます
 
 #### 注意事項
 
 - 現在 Windows のみ対応です
-- Node.js 20 以降が必要です（開発・ビルド時）
 - メインプロセスが API リクエストを実行するため、CORS の制約を受けません
 - HTTPS 通信のみ許可、リクエストタイムアウトは 15 秒です
 
@@ -107,9 +114,8 @@ GitHub にバージョンタグ（`v1.0.0` 等）を push すると、GitHub Act
 | `src/main.js` | Electron メインプロセス |
 | `src/preload.js` | Electron プリロードスクリプト（IPC ブリッジ） |
 | `src/renderer/index.html` | Electron レンダラー UI |
-| `package.json` | Electron 依存関係・ビルド設定 |
+| `package.json` | Electron 依存関係 |
 | `.github/workflows/deploy.yml` | GitHub Pages デプロイワークフロー |
-| `.github/workflows/build-electron.yml` | Electron ビルド・リリースワークフロー |
 | `docs/requirements.md` | 要件定義 |
 | `docs/implementation.md` | 実装計画 |
 | `docs/electron-migration-plan.md` | Electron 移行計画 |
@@ -300,6 +306,7 @@ export default {
 
 | 日付 | 内容 |
 |---|---|
+| 2026-03-08 | Electron 版: README を初心者向けに加筆、インストーラー配布を廃止しソース提供に変更、package.json 修正 |
 | 2026-03-08 | Chrome 拡張版（サイドパネル方式）・Electron デスクトップアプリ版を追加 |
 | 2026-02-24 | インデックス（iid）による絞り込み検索を追加: WEKO3 `/api/tree` からインデックス一覧を取得してドロップダウン表示、Worker に `path=/api/tree` モードと `iid` パラメータ検証を追加 |
 | 2026-02-23 | Worker セキュリティ強化: クエリパラメータのキー・値を許可リストで検証、不正パラメータをブロック |

@@ -3,15 +3,14 @@
   "version": "1.0.0",
   "description": "JAIRO Cloud OpenSearch クライアント",
   "main": "src/main.js",
+  "author": "Takanori Hayashi",
   "scripts": {
     "start": "electron .",
     "build": "electron-builder --win"
   },
-  "dependencies": {
-    "electron": "^34.0.0"
-  },
   "devDependencies": {
-    "electron-builder": "^25.0.0"
+    "electron": "^40.8.0",
+    "electron-builder": "^26.8.1"
   },
   "build": {
     "appId": "jp.ac.nii.jc-opensearch-client",

@@ -1,5 +1,23 @@
 # 作業ログ
 
+## 2026-03-08: Electron 版ドキュメント改善・配布方針変更
+
+### 変更内容
+
+- README.md の Electron セクションを初心者向けに書き直し
+  - ソースコードからのセットアップ手順（git clone → npm install → npm start）を追加
+  - 使い方（起動後の操作手順）を追加
+  - 必要なツール（Node.js, Git）を明記
+- インストーラー（.exe）配布を廃止し、ソース提供のみに変更
+  - コード署名がないため SmartScreen 警告や組織ポリシーでブロックされるリスクを考慮
+  - `.github/workflows/build-electron.yml`（自動ビルド・リリースワークフロー）を削除
+  - README からインストーラー関連の記述を削除
+- package.json 修正
+  - `author` フィールドを追加（electron-builder の警告解消）
+  - `electron` を `dependencies` から `devDependencies` に移動（electron-builder の要件）
+
+---
+
 ## 2026-03-08: Chrome 拡張版・Electron デスクトップアプリ版の追加
 
 ### 背景
