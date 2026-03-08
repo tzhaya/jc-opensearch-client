@@ -2,3 +2,6 @@ CLAUDE.md
 .claude/
 jc-opensearch_test.html
 index.html
+node_modules/
+dist/
+.vscode/

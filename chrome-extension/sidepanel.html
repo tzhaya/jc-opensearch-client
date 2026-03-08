@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>JAIRO Cloud OpenSearch クライアント</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; }
+    body {
+      font-family: sans-serif;
+      font-size: 14px;
+      color: #333;
+      background: #f0f2f5;
+      margin: 0;
+      padding: 0;
+    }
+    #app { max-width: 100%; margin: 0 auto; padding: 0 12px 40px; }
+
+    header {
+      background: #003f7d;
+      color: #fff;
+      padding: 10px 12px;
+      margin: 0 -12px 16px;
+    }
+    header h1 { font-size: 16px; font-weight: bold; margin: 0; }
+
+    /* Search form */
+    #search-section {
+      background: #fff;
+      border: 1px solid #d0d7de;
+      border-radius: 6px;
+      padding: 12px;
+      margin-bottom: 16px;
+    }
+    .form-row {
+      display: flex;
+      align-items: center;
+      margin-bottom: 8px;
+    }
+    .form-row label {
+      width: 90px;
+      flex-shrink: 0;
+      color: #555;
+      font-size: 12px;
+    }
+    .form-row input[type="text"],
+    .form-row input[type="url"],
+    .form-row select {
+      flex: 1;
+      min-width: 0;
+      padding: 5px 8px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      font-size: 13px;
+    }
+    .form-row input:focus,
+    .form-row select:focus {
+      outline: none;
+      border-color: #0070c0;
+      box-shadow: 0 0 0 2px rgba(0,112,192,0.15);
+    }
+    .form-actions {
+      display: flex;
+      justify-content: flex-end;
+      margin-top: 10px;
+    }
+    #btn-search {
+      background: #0070c0;
+      color: #fff;
+      border: none;
+      border-radius: 4px;
+      padding: 7px 24px;
+      font-size: 13px;
+      cursor: pointer;
+    }
+    #btn-search:hover { background: #005fa3; }
+    #btn-search:disabled { background: #aaa; cursor: not-allowed; }
+
+    /* Messages */
+    #error-msg {
+      border-radius: 4px;
+      padding: 10px 12px;
+      margin-bottom: 12px;
+      font-size: 12px;
+      line-height: 1.8;
+      white-space: pre-wrap;
+    }
+    #error-msg.warn {
+      background: #fff3cd;
+      border: 1px solid #ffc107;
+    }
+    #error-msg.cors {
+      background: #f8d7da;
+      border: 1px solid #f5c2c7;
+    }
+    #loading { text-align: center; padding: 24px; color: #888; }
+    .hidden { display: none !important; }
+
+    /* Result info */
+    #result-info { font-size: 12px; color: #555; margin-bottom: 10px; }
+
+    /* Item card */
+    .item-card {
+      background: #fff;
+      border: 1px solid #d0d7de;
+      border-radius: 6px;
+      padding: 10px 12px;
+      margin-bottom: 8px;
+    }
+    .item-title {
+      font-size: 14px;
+      font-weight: bold;
+      color: #0070c0;
+      cursor: pointer;
+      line-height: 1.4;
+      display: inline-block;
+      border: none;
+      background: none;
+      padding: 0;
+      text-align: left;
+    }
+    .item-title:hover { text-decoration: underline; }
+    .item-title::before { content: '\25B6\00a0'; font-size: 10px; color: #888; }
+    .item-title.open::before { content: '\25BC\00a0'; }
+    .item-meta { font-size: 12px; color: #555; margin-top: 4px; line-height: 1.5; }
+    .item-files { font-size: 12px; margin-top: 4px; }
+    .item-files a { color: #0070c0; margin-right: 10px; text-decoration: none; }
+    .item-files a:hover { text-decoration: underline; }
+    .item-url { font-size: 11px; color: #888; margin-top: 4px; word-break: break-all; }
+    .item-url a { color: #888; }
+
+    /* Expanded detail */
+    .item-detail {
+      margin-top: 10px;
+      border-top: 1px solid #eee;
+      padding-top: 10px;
+    }
+    .detail-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+    .detail-table tr { border-bottom: 1px solid #f0f0f0; }
+    .detail-table th {
+      width: 100px;
+      text-align: left;
+      vertical-align: top;
+      padding: 4px 6px 4px 0;
+      color: #666;
+      font-weight: normal;
+      white-space: nowrap;
+    }
+    .detail-table td { padding: 4px 6px; vertical-align: top; line-height: 1.6; }
+    .detail-desc { white-space: pre-wrap; }
+    .detail-lang { color: #888; font-size: 10px; }
+
+    /* Pagination */
+    #pagination {
+      margin-top: 16px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      font-size: 12px;
+    }
+    .page-btn {
+      background: #fff;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      padding: 5px 12px;
+      cursor: pointer;
+      font-size: 12px;
+    }
+    .page-btn:hover { background: #f0f0f0; }
+    .page-btn:disabled { color: #aaa; cursor: not-allowed; }
+    .page-info { color: #555; }
+  </style>
+</head>
+<body>
+<div id="app">
+  <header>
+    <h1>JAIRO Cloud OpenSearch クライアント</h1>
+  </header>
+
+  <section id="search-section">
+    <div class="form-row">
+      <label for="repo-url">リポジトリ URL</label>
+      <input type="url" id="repo-url">
+    </div>
+    <div class="form-row">
+      <label for="q-title">タイトル</label>
+      <input type="text" id="q-title">
+    </div>
+    <div class="form-row">
+      <label for="q-des">内容記述</label>
+      <input type="text" id="q-des">
+    </div>
+    <div class="form-row">
+      <label for="q-type">資源タイプ</label>
+      <select id="q-type">
+        <option value="">-- 指定なし --</option>
+      </select>
+    </div>
+    <div class="form-actions">
+      <button id="btn-search">検索</button>
+    </div>
+  </section>
+
+  <div id="error-msg" class="hidden"></div>
+  <div id="loading" class="hidden">検索中…</div>
+
+  <section id="results-section" class="hidden">
+    <div id="result-info"></div>
+    <div id="result-list"></div>
+    <div id="pagination"></div>
+  </section>
+</div>
+
+<script src="sidepanel.js"></script>
+</body>
+</html>

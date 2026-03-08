@@ -1,217 +1,3 @@
-<!DOCTYPE html>
-<html lang="ja">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>JAIRO Cloud OpenSearch クライアント</title>
-  <style>
-    *, *::before, *::after { box-sizing: border-box; }
-    body {
-      font-family: sans-serif;
-      font-size: 14px;
-      color: #333;
-      background: #f0f2f5;
-      margin: 0;
-      padding: 0;
-    }
-    #app { max-width: 960px; margin: 0 auto; padding: 0 16px 40px; }
-
-    header {
-      background: #003f7d;
-      color: #fff;
-      padding: 12px 16px;
-      margin: 0 -16px 20px;
-    }
-    header h1 { font-size: 18px; font-weight: bold; margin: 0; }
-
-    /* Search form */
-    #search-section {
-      background: #fff;
-      border: 1px solid #d0d7de;
-      border-radius: 6px;
-      padding: 16px;
-      margin-bottom: 20px;
-    }
-    .form-row {
-      display: flex;
-      align-items: center;
-      margin-bottom: 10px;
-    }
-    .form-row label {
-      width: 120px;
-      flex-shrink: 0;
-      color: #555;
-      font-size: 13px;
-    }
-    .form-row input[type="text"],
-    .form-row input[type="url"],
-    .form-row select {
-      flex: 1;
-      padding: 6px 10px;
-      border: 1px solid #ccc;
-      border-radius: 4px;
-      font-size: 14px;
-    }
-    .form-row input:focus,
-    .form-row select:focus {
-      outline: none;
-      border-color: #0070c0;
-      box-shadow: 0 0 0 2px rgba(0,112,192,0.15);
-    }
-    .form-actions {
-      display: flex;
-      justify-content: flex-end;
-      margin-top: 12px;
-    }
-    #btn-search {
-      background: #0070c0;
-      color: #fff;
-      border: none;
-      border-radius: 4px;
-      padding: 8px 28px;
-      font-size: 14px;
-      cursor: pointer;
-    }
-    #btn-search:hover { background: #005fa3; }
-    #btn-search:disabled { background: #aaa; cursor: not-allowed; }
-
-    /* Messages */
-    #error-msg {
-      border-radius: 4px;
-      padding: 12px 16px;
-      margin-bottom: 16px;
-      font-size: 13px;
-      line-height: 1.8;
-      white-space: pre-wrap;
-    }
-    #error-msg.warn {
-      background: #fff3cd;
-      border: 1px solid #ffc107;
-    }
-    #error-msg.cors {
-      background: #f8d7da;
-      border: 1px solid #f5c2c7;
-    }
-    #loading { text-align: center; padding: 32px; color: #888; }
-    .hidden { display: none !important; }
-
-    /* Result info */
-    #result-info { font-size: 13px; color: #555; margin-bottom: 12px; }
-
-    /* Item card */
-    .item-card {
-      background: #fff;
-      border: 1px solid #d0d7de;
-      border-radius: 6px;
-      padding: 14px 16px;
-      margin-bottom: 10px;
-    }
-    .item-title {
-      font-size: 15px;
-      font-weight: bold;
-      color: #0070c0;
-      cursor: pointer;
-      line-height: 1.4;
-      display: inline-block;
-      border: none;
-      background: none;
-      padding: 0;
-      text-align: left;
-    }
-    .item-title:hover { text-decoration: underline; }
-    .item-title::before { content: '▶\00a0'; font-size: 10px; color: #888; }
-    .item-title.open::before { content: '▼\00a0'; }
-    .item-meta { font-size: 13px; color: #555; margin-top: 4px; line-height: 1.5; }
-    .item-files { font-size: 13px; margin-top: 4px; }
-    .item-files a { color: #0070c0; margin-right: 12px; text-decoration: none; }
-    .item-files a:hover { text-decoration: underline; }
-    .item-url { font-size: 12px; color: #888; margin-top: 4px; }
-    .item-url a { color: #888; }
-
-    /* Expanded detail */
-    .item-detail {
-      margin-top: 12px;
-      border-top: 1px solid #eee;
-      padding-top: 12px;
-    }
-    .detail-table { width: 100%; border-collapse: collapse; font-size: 13px; }
-    .detail-table tr { border-bottom: 1px solid #f0f0f0; }
-    .detail-table th {
-      width: 140px;
-      text-align: left;
-      vertical-align: top;
-      padding: 5px 8px 5px 0;
-      color: #666;
-      font-weight: normal;
-      white-space: nowrap;
-    }
-    .detail-table td { padding: 5px 8px; vertical-align: top; line-height: 1.6; }
-    .detail-desc { white-space: pre-wrap; }
-    .detail-lang { color: #888; font-size: 11px; }
-
-    /* Pagination */
-    #pagination {
-      margin-top: 20px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 8px;
-      font-size: 13px;
-    }
-    .page-btn {
-      background: #fff;
-      border: 1px solid #ccc;
-      border-radius: 4px;
-      padding: 6px 14px;
-      cursor: pointer;
-      font-size: 13px;
-    }
-    .page-btn:hover { background: #f0f0f0; }
-    .page-btn:disabled { color: #aaa; cursor: not-allowed; }
-    .page-info { color: #555; }
-  </style>
-</head>
-<body>
-<div id="app">
-  <header>
-    <h1>JAIRO Cloud OpenSearch クライアント</h1>
-  </header>
-
-  <section id="search-section">
-    <div class="form-row">
-      <label for="repo-url">リポジトリ URL</label>
-      <input type="url" id="repo-url">
-    </div>
-    <div class="form-row">
-      <label for="q-title">タイトル</label>
-      <input type="text" id="q-title">
-    </div>
-    <div class="form-row">
-      <label for="q-des">内容記述</label>
-      <input type="text" id="q-des">
-    </div>
-    <div class="form-row">
-      <label for="q-type">資源タイプ</label>
-      <select id="q-type">
-        <option value="">-- 指定なし --</option>
-      </select>
-    </div>
-    <div class="form-actions">
-      <button id="btn-search">検索</button>
-    </div>
-  </section>
-
-  <div id="error-msg" class="hidden"></div>
-  <div id="loading" class="hidden">検索中…</div>
-
-  <section id="results-section" class="hidden">
-    <div id="result-info"></div>
-    <div id="result-list"></div>
-    <div id="pagination"></div>
-  </section>
-</div>
-
-<script>
 // ===== CONFIG =====
 const CONFIG = {
   repositoryUrl: '',
@@ -219,9 +5,44 @@ const CONFIG = {
 };
 // ==================
 
+// ===== Chrome 拡張環境検出 & fetch ラッパー =====
+const IS_CHROME_EXTENSION = typeof chrome !== 'undefined'
+  && !!chrome.runtime
+  && !!chrome.runtime.sendMessage;
+
+if (IS_CHROME_EXTENSION) {
+  const _originalFetch = window.fetch.bind(window);
+  window.fetch = function(url, options) {
+    // GET 以外のリクエストや拡張外では元の fetch を使用
+    if (options && options.method && options.method !== 'GET') {
+      return _originalFetch(url, options);
+    }
+    return new Promise((resolve, reject) => {
+      chrome.runtime.sendMessage(
+        { type: 'fetch', url: url.toString() },
+        (response) => {
+          if (chrome.runtime.lastError) {
+            reject(new Error(chrome.runtime.lastError.message));
+            return;
+          }
+          if (response.error) {
+            reject(new Error(response.error));
+            return;
+          }
+          // Response オブジェクトを模擬
+          resolve({
+            ok: true,
+            status: 200,
+            text: () => Promise.resolve(response.text),
+          });
+        }
+      );
+    });
+  };
+}
+// ================================================
+
 // ===== 通信先ホスト制限 =====
-// Cloudflare Workers プロキシと同じルールでクライアント側でも検証する。
-// 出典: https://docs.google.com/spreadsheets/d/1oNjykAjC2uvTV0KdUHflOwOq0Y7tMSqc10GivORNFMc/
 const ALLOWED_HOST_PATTERN = /\.repo\.nii\.ac\.jp$/i;
 const ALLOWED_HOSTS_EXTRA = new Set([
   'repository.nii.ac.jp',
@@ -384,7 +205,8 @@ function buildUrl(query, page) {
   if (query.title) params.set('title', query.title);
   if (query.des)   params.set('des',   query.des);
   if (query.type)  params.set('type',  query.type);
-  if (CONFIG.proxyUrl) {
+  // Chrome 拡張環境ではプロキシを使わず直接 API にアクセス
+  if (CONFIG.proxyUrl && !IS_CHROME_EXTENSION) {
     params.set('repo', repoUrl);
     return `${CONFIG.proxyUrl}?${params}`;
   }
@@ -719,11 +541,11 @@ async function doSearch(page = 1) {
     const text = await res.text();
     renderResults(parseXML(text));
   } catch (err) {
-    const isCors = err instanceof TypeError && err.message === 'Failed to fetch';
+    const isCors = !IS_CHROME_EXTENSION && err instanceof TypeError && err.message === 'Failed to fetch';
     const msg = isCors
       ? (CONFIG.proxyUrl
           ? `接続エラー: プロキシ（${CONFIG.proxyUrl}）経由でのアクセスに失敗しました。プロキシの設定を確認してください。`
-          : 'CORS エラー: ブラウザが API へのアクセスをブロックしました。\n\n以下のいずれかの方法で解決できます:\n① ブラウザ拡張機能「Allow CORS: Access-Control-Allow-Headers」等を有効化する\n② Chrome を --disable-web-security フラグ付きで起動する')
+          : 'CORS エラー: ブラウザが API へのアクセスをブロックしました。\n\nChrome 拡張版をご利用ください。')
       : `エラー: ${err.message}`;
     showError(msg, isCors ? 'cors' : 'warn');
   } finally {
@@ -772,6 +594,3 @@ function init() {
 }
 
 document.addEventListener('DOMContentLoaded', init);
-</script>
-</body>
-</html>

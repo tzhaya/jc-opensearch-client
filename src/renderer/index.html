@@ -215,43 +215,17 @@
 // ===== CONFIG =====
 const CONFIG = {
   repositoryUrl: '',
-  proxyUrl: ''
 };
 // ==================
 
-// ===== 通信先ホスト制限 =====
-// Cloudflare Workers プロキシと同じルールでクライアント側でも検証する。
-// 出典: https://docs.google.com/spreadsheets/d/1oNjykAjC2uvTV0KdUHflOwOq0Y7tMSqc10GivORNFMc/
-const ALLOWED_HOST_PATTERN = /\.repo\.nii\.ac\.jp$/i;
-const ALLOWED_HOSTS_EXTRA = new Set([
-  'repository.nii.ac.jp',
-  'd-repo.ier.hit-u.ac.jp',
-  'repository.lib.tottori-u.ac.jp',
-  'ismrepo.ism.ac.jp',
-  'repository.ninjal.ac.jp',
-  'ir.soken.ac.jp',
-  'repository.dl.itc.u-tokyo.ac.jp',
-  'teapot.lib.ocha.ac.jp',
-  'kutarr.kochi-tech.ac.jp',
-  'ir.jikei.ac.jp',
-  'ir.kagoshima-u.ac.jp',
-  'amcor.asahikawa-med.ac.jp',
-  'repository.ffpri.go.jp',
-  'repository.jircas.go.jp',
-  'repository.naro.go.jp',
-  'ir.ide.go.jp',
-  'repo.qst.go.jp',
-  'repo-tkfd.jp',
-]);
-
-function isAllowedHost(repoUrl) {
-  let parsed;
-  try { parsed = new URL(repoUrl); } catch { return false; }
-  if (parsed.protocol !== 'https:') return false;
-  const host = parsed.hostname;
-  return ALLOWED_HOST_PATTERN.test(host) || ALLOWED_HOSTS_EXTRA.has(host);
-}
-// ===========================
+// Electron IPC 経由 fetch。Electron 以外の環境ではブラウザ fetch にフォールバック。
+const apiFetch = window.electronAPI
+  ? (url) => window.electronAPI.fetch(url)
+  : async (url) => {
+      const r = await fetch(url);
+      if (!r.ok) throw new Error(`HTTP ${r.status}: ${r.statusText}`);
+      return r.text();
+    };
 
 // 資源タイプ語彙（docs/resource_type_vocabulary.md より）
 const RESOURCE_TYPES = [
@@ -384,10 +358,6 @@ function buildUrl(query, page) {
   if (query.title) params.set('title', query.title);
   if (query.des)   params.set('des',   query.des);
   if (query.type)  params.set('type',  query.type);
-  if (CONFIG.proxyUrl) {
-    params.set('repo', repoUrl);
-    return `${CONFIG.proxyUrl}?${params}`;
-  }
   return `${base}api/opensearch/search?${params}`;
 }
 
@@ -698,11 +668,6 @@ async function doSearch(page = 1) {
     document.getElementById('repo-url').focus();
     return;
   }
-  if (!isAllowedHost(repoVal)) {
-    showError('このリポジトリ URL は許可されていません。JAIRO Cloud 利用機関の URL を入力してください。', 'warn');
-    document.getElementById('repo-url').focus();
-    return;
-  }
   if (!query.title && !query.des && !query.type) {
     showError('検索条件を 1 つ以上入力してください。', 'warn');
     return;
@@ -714,18 +679,10 @@ async function doSearch(page = 1) {
   hideError();
 
   try {
-    const res = await fetch(buildUrl(query, page));
-    if (!res.ok) throw new Error(`HTTP ${res.status}: ${res.statusText}`);
-    const text = await res.text();
+    const text = await apiFetch(buildUrl(query, page));
     renderResults(parseXML(text));
   } catch (err) {
-    const isCors = err instanceof TypeError && err.message === 'Failed to fetch';
-    const msg = isCors
-      ? (CONFIG.proxyUrl
-          ? `接続エラー: プロキシ（${CONFIG.proxyUrl}）経由でのアクセスに失敗しました。プロキシの設定を確認してください。`
-          : 'CORS エラー: ブラウザが API へのアクセスをブロックしました。\n\n以下のいずれかの方法で解決できます:\n① ブラウザ拡張機能「Allow CORS: Access-Control-Allow-Headers」等を有効化する\n② Chrome を --disable-web-security フラグ付きで起動する')
-      : `エラー: ${err.message}`;
-    showError(msg, isCors ? 'cors' : 'warn');
+    showError(`エラー: ${err.message}`, 'warn');
   } finally {
     setLoading(false);
   }

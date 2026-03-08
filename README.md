@@ -1,6 +1,14 @@
 # JAIRO Cloud OpenSearch クライアント
 
-JAIRO Cloud で構築された機関リポジトリに対して OpenSearch 検索を実行し、結果を一覧表示するブラウザ用クライアントです。
+JAIRO Cloud で構築された機関リポジトリに対して OpenSearch 検索を実行し、結果を一覧表示するクライアントです。
+
+3つの利用形態があります。
+
+| 形態 | CORS 対策 | 特徴 |
+|---|---|---|
+| **Web ブラウザ版** | Cloudflare Workers プロキシ経由 | GitHub Pages 等で公開。セットアップに Workers の設定が必要 |
+| **Chrome 拡張版** | バックグラウンドワーカーで直接通信 | サイドパネルで動作。プロキシ不要 |
+| **Electron デスクトップアプリ版** | メインプロセスで直接通信 | 単体アプリとして動作。プロキシ不要 |
 
 ## 画面例
 
@@ -8,35 +16,103 @@ JAIRO Cloud で構築された機関リポジトリに対して OpenSearch 検�
 
 ## 特徴
 
-- 単一の HTML ファイルで完結しています。
-- タイトル・内容記述・資源タイプによるキーワード検索を行います。
-- 検索結果を JPCOAR スキーマ XML から取得し、書誌情報を一覧表示します。
-- タイトルクリックで全 JPCOAR フィールドを展開して表示します。
+- タイトル・内容記述・資源タイプによるキーワード検索を行います
+- 検索結果を JPCOAR スキーマ XML から取得し、書誌情報を一覧表示します
+- タイトルクリックで全 JPCOAR フィールドを展開して表示します
 - ページング対応（20件/ページ）
-- Cloudflare Workers によるプロキシ経由でJAIRO Cloudにアクセスします。これにより CORS 問題を回避しています。
 
 ## 使い方
 
-### Webサーバに設置する
+### Web ブラウザ版
 
-- 例；GitHub Pages に設置する
-  - [https://tzhaya.github.io/jc-opensearch-client/](https://tzhaya.github.io/jc-opensearch-client/) をブラウザで開く。
+#### Web サーバに設置する
 
-### ローカルで使う
+- 例: GitHub Pages に設置する
+  - [https://tzhaya.github.io/jc-opensearch-client/](https://tzhaya.github.io/jc-opensearch-client/) をブラウザで開く
+
+#### ローカルで使う
 
 1. `jc-opensearch.html` をブラウザで開く
 2. 検索対象の機関リポジトリ URL を入力（例: `https://jircas.repo.nii.ac.jp/`）
 3. キーワードを入力して検索
    - ローカルで使用する場合は CORS の制限があります。ブラウザ拡張機能等で CORS を解除してください
 
+### Chrome 拡張版（サイドパネル）
+
+Chrome のサイドパネルで検索クライアントを使用できます。プロキシサーバーは不要です。
+
+#### インストール手順
+
+1. このリポジトリの `chrome-extension` フォルダをローカルにダウンロードする
+   - リポジトリ全体を ZIP でダウンロード: **Code** → **Download ZIP** → 展開後 `chrome-extension` フォルダを使用
+   - または `git clone` でリポジトリをクローンする
+2. Chrome で `chrome://extensions` を開く
+3. 右上の **「デベロッパー モード」** をオンにする
+4. **「パッケージ化されていない拡張機能を読み込む」** をクリック
+5. ダウンロードした `chrome-extension` フォルダを選択
+6. 拡張機能一覧に「JAIRO Cloud OpenSearch クライアント」が追加される
+
+#### 使い方
+
+1. Chrome ツールバーの拡張機能アイコンをクリック → サイドパネルが開く
+2. リポジトリ URL を入力（例: `https://jircas.repo.nii.ac.jp/`）
+3. キーワードを入力して検索
+
+#### 注意事項
+
+- Chrome 114 以降が必要です（サイドパネル API）
+- 拡張機能のバックグラウンドワーカーが API リクエストを中継するため、CORS の制約を受けません
+- アクセス可能なホストは JAIRO Cloud 利用機関に限定されています（`manifest.json` の `host_permissions`）
+
+### Electron デスクトップアプリ版
+
+単体のデスクトップアプリケーションとして動作します。プロキシサーバーは不要です。
+
+#### 開発モードで実行
+
+```bash
+npm install
+npm start
+```
+
+#### Windows インストーラーをビルド
+
+```bash
+npm run build
+```
+
+`dist/` フォルダに NSIS インストーラー（`.exe`）が生成されます。
+
+#### リリース版の入手
+
+GitHub にバージョンタグ（`v1.0.0` 等）を push すると、GitHub Actions が自動的に Windows インストーラーをビルドし、[Releases](../../releases) ページにアップロードします。
+
+#### 注意事項
+
+- 現在 Windows のみ対応です
+- Node.js 20 以降が必要です（開発・ビルド時）
+- メインプロセスが API リクエストを実行するため、CORS の制約を受けません
+- HTTPS 通信のみ許可、リクエストタイムアウトは 15 秒です
+
 ## ファイル構成
 
-| ファイル | 説明 |
+| ファイル / フォルダ | 説明 |
 |---|---|
-| `jc-opensearch.html` | メインの HTML テンプレート（CONFIG は空白） |
-| `.github/workflows/deploy.yml` | GitHub Actions デプロイワークフロー |
+| `jc-opensearch.html` | Web ブラウザ版 HTML テンプレート（CONFIG は空白） |
+| `chrome-extension/` | Chrome 拡張版（サイドパネル方式） |
+| `chrome-extension/manifest.json` | 拡張機能マニフェスト（Manifest V3） |
+| `chrome-extension/background.js` | バックグラウンドワーカー（fetch プロキシ） |
+| `chrome-extension/sidepanel.html` | サイドパネル UI |
+| `chrome-extension/sidepanel.js` | サイドパネル ロジック |
+| `src/main.js` | Electron メインプロセス |
+| `src/preload.js` | Electron プリロードスクリプト（IPC ブリッジ） |
+| `src/renderer/index.html` | Electron レンダラー UI |
+| `package.json` | Electron 依存関係・ビルド設定 |
+| `.github/workflows/deploy.yml` | GitHub Pages デプロイワークフロー |
+| `.github/workflows/build-electron.yml` | Electron ビルド・リリースワークフロー |
 | `docs/requirements.md` | 要件定義 |
 | `docs/implementation.md` | 実装計画 |
+| `docs/electron-migration-plan.md` | Electron 移行計画 |
 | `docs/worklog.md` | 作業ログ |
 | `docs/resource_type_vocabulary.md` | 資源タイプ語彙一覧 |
 
@@ -224,6 +300,7 @@ export default {
 
 | 日付 | 内容 |
 |---|---|
+| 2026-03-08 | Chrome 拡張版（サイドパネル方式）・Electron デスクトップアプリ版を追加 |
 | 2026-02-24 | インデックス（iid）による絞り込み検索を追加: WEKO3 `/api/tree` からインデックス一覧を取得してドロップダウン表示、Worker に `path=/api/tree` モードと `iid` パラメータ検証を追加 |
 | 2026-02-23 | Worker セキュリティ強化: クエリパラメータのキー・値を許可リストで検証、不正パラメータをブロック |
 | 2026-02-23 | Worker セキュリティ強化: リダイレクト追従禁止・https/ポート制限・タイムアウト追加・不許可 Origin 時の CORS ヘッダー省略 |
