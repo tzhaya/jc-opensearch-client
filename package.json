@@ -1,0 +1,29 @@
+{
+  "name": "jc-opensearch-client",
+  "version": "1.0.0",
+  "description": "JAIRO Cloud OpenSearch クライアント",
+  "main": "src/main.js",
+  "scripts": {
+    "start": "electron .",
+    "build": "electron-builder --win"
+  },
+  "dependencies": {
+    "electron": "^34.0.0"
+  },
+  "devDependencies": {
+    "electron-builder": "^25.0.0"
+  },
+  "build": {
+    "appId": "jp.ac.nii.jc-opensearch-client",
+    "productName": "JAIRO Cloud OpenSearch クライアント",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "src/**/*"
+    ],
+    "win": {
+      "target": "nsis"
+    }
+  }
+}
