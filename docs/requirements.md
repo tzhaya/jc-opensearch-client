@@ -2,9 +2,12 @@
 
 ## ファイル構成
 
-| ファイル | 説明 |
+| ファイル / フォルダ | 説明 |
 |---|---|
-| `jc-opensearch.html` | メインの OpenSearch 検索クライアント |
+| `jc-opensearch.html` | Web ブラウザ版 OpenSearch 検索クライアント |
+| `chrome-extension/` | Chrome 拡張版（サイドパネル方式） |
+| `src/` | Electron デスクトップアプリ版 |
+| `package.json` | Electron 依存関係・ビルド設定 |
 
 ## このツールの目的
 
@@ -69,6 +72,26 @@
 - **CORS 制限**: `Access-Control-Allow-Origin` は `*` を使用せず、`ALLOWED_ORIGIN` に設定した特定オリジンのみ許可する
   - `ALLOWED_ORIGIN` には Worker を利用するページのオリジン（例: `https://<username>.github.io`）を設定する
   - `Vary: Origin` を付与してキャッシュ動作を正しく制御する
+
+## Chrome 拡張版（サイドパネル方式）
+
+- Chrome のサイドパネルとして動作する検索クライアント
+- Manifest V3 準拠
+- バックグラウンドワーカー（`background.js`）が API リクエストを中継し、CORS を回避
+- プロキシサーバー不要で直接 WEKO3 API にアクセス
+- `host_permissions` で接続先を JAIRO Cloud 利用機関に限定（`manifest.json`）
+- クライアント側でもホスト検証を実施（`sidepanel.js`）
+- Chrome 114 以降が必要（Side Panel API）
+
+## Electron デスクトップアプリ版
+
+- Electron で動作する Windows 向けデスクトップアプリ
+- メインプロセス（`src/main.js`）が API リクエストを実行し、CORS を回避
+- `contextIsolation: true` / `nodeIntegration: false` でセキュリティを確保
+- プリロードスクリプト（`src/preload.js`）で `window.electronAPI.fetch()` を公開
+- HTTPS 通信のみ許可、リクエストタイムアウト 15 秒
+- electron-builder による NSIS インストーラー生成（Windows）
+- GitHub Actions でタグ push 時に自動ビルド・リリース
 
 ### HTMLテーブル の実装要件
 

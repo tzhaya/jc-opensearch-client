@@ -1,5 +1,62 @@
 # 作業ログ
 
+## 2026-03-08: Chrome 拡張版・Electron デスクトップアプリ版の追加
+
+### 背景
+
+- Web ブラウザ版は Cloudflare Workers プロキシが必要であり、セットアップの手間がある
+- CORS 制約を根本的に回避するため、Chrome 拡張版と Electron デスクトップアプリ版を追加
+
+### Chrome 拡張版（サイドパネル方式）
+
+Chrome のサイドパネルとして動作する検索クライアント。プロキシサーバー不要。
+
+| ファイル | 説明 |
+|---|---|
+| `chrome-extension/manifest.json` | Manifest V3 マニフェスト（`sidePanel` 権限、`host_permissions` でホスト制限） |
+| `chrome-extension/background.js` | サービスワーカー。`chrome.runtime.onMessage` で fetch リクエストを中継 |
+| `chrome-extension/sidepanel.html` | サイドパネル UI（検索フォーム・結果表示） |
+| `chrome-extension/sidepanel.js` | 検索ロジック・XML パース・結果レンダリング。Chrome 拡張環境では `fetch` を `chrome.runtime.sendMessage` 経由に差し替え |
+
+**CORS 回避の仕組み**: サイドパネル（renderer）の fetch 呼び出しを `chrome.runtime.sendMessage` でバックグラウンドワーカーに委譲。バックグラウンドワーカーは `host_permissions` で許可されたホストへ直接リクエストを送信する。
+
+**インストール方法**: Chrome で `chrome://extensions` → デベロッパーモード → 「パッケージ化されていない拡張機能を読み込む」 → `chrome-extension` フォルダを選択。
+
+### Electron デスクトップアプリ版
+
+Windows 向けデスクトップアプリケーション。プロキシサーバー不要。
+
+| ファイル | 説明 |
+|---|---|
+| `package.json` | Electron・electron-builder の依存関係、ビルド設定（NSIS インストーラー） |
+| `src/main.js` | メインプロセス。IPC で fetch を処理（HTTPS のみ、15 秒タイムアウト）。外部リンクはデフォルトブラウザで開く |
+| `src/preload.js` | `contextBridge` で `window.electronAPI.fetch()` を公開 |
+| `src/renderer/index.html` | レンダラー UI。`window.electronAPI` 検出時は IPC 経由 fetch、非 Electron 環境ではブラウザ fetch にフォールバック |
+
+**CORS 回避の仕組み**: レンダラーの fetch 呼び出しを IPC 経由でメインプロセスに委譲。メインプロセスの Node.js fetch は CORS 制約を受けない。
+
+**ビルド・リリース**: `npm run build` で Windows NSIS インストーラーを生成。GitHub にバージョンタグ（`v*`）を push すると GitHub Actions が自動ビルドし Releases にアップロード。
+
+### その他の変更
+
+- `.gitignore` に `node_modules/`、`dist/`、`.vscode/` を追加
+- Electron ブランチ (`claude/electron-migration-evaluation-Ncq6X`) を `feature/chrome-extension-sidepanel` ブランチにマージ
+
+### 変更ファイル
+
+| ファイル | 変更内容 |
+|---|---|
+| `chrome-extension/*` | Chrome 拡張版を新規作成 |
+| `src/*`、`package.json`、`package-lock.json` | Electron アプリを新規作成 |
+| `.github/workflows/build-electron.yml` | Electron ビルドワークフローを新規作成 |
+| `docs/electron-migration-plan.md` | Electron 移行計画を新規作成 |
+| `.gitignore` | `node_modules/`、`dist/`、`.vscode/` を追加 |
+| `README.md` | 3つの利用形態の説明、インストール手順、ファイル構成、変更履歴を更新 |
+| `docs/requirements.md` | Chrome 拡張版・Electron 版の要件を追記 |
+| `docs/worklog.md` | 本セクションを追記 |
+
+---
+
 ## 2026-02-24: インデックス（iid）絞り込み検索の追加
 
 ### 背景
